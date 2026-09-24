@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);require_once __DIR__.'/inventory-model.php';
+declare(strict_types=1);require_once __DIR__.'/inventory-model-v2.php';
 function op_x($v){return ld_h($v);}function op_d($v){$d=of_date($v??'');return$d?date('M j, Y',strtotime($d)):'-';}
 $map=[];foreach($data['rows'] as $r)$map[$r['product_code']]=$r;try{$po=ld_rows('Open Purchase Orders');}catch(Throwable $e){die(ld_h($e->getMessage()));}
 $q=trim((string)($_GET['q']??''));$supplier=trim((string)($_GET['supplier']??''));$sups=[];$rows=[];$poTotals=[];
