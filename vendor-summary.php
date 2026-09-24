@@ -7,7 +7,9 @@
 
 require_once __DIR__ . '/lowe-dashboard-common.php';
 
-$masterFile = ld_master();\n\nfunction vs_esc($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+$masterFile = ld_master();
+
+function vs_esc($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function vs_num($v,$d=0){ return number_format((float)$v,$d); }
 function vs_money($v){ return '$'.number_format((float)$v,0); }
 function vs_contains($h,$n){ if($n==='') return true; return function_exists('mb_stripos') ? mb_stripos((string)$h,(string)$n)!==false : stripos((string)$h,(string)$n)!==false; }
