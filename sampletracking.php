@@ -1,0 +1,104 @@
+<?php
+session_start();
+require_once __DIR__ . '/config/database.php';
+date_default_timezone_set('America/Chicago');
+function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+function stage_meta($status): array {
+ $map=[
+  'Requested'=>[1,'Request Received','request'],
+  'Preparing'=>[2,'Preparing Sample','preparing'],'Ready to Ship'=>[2,'Preparing Sample','preparing'],
+  'Shipped'=>[3,'Shipped / In Transit','transit'],
+  'Delivered'=>[4,'Customer Evaluation','evaluation'],'Customer Testing'=>[4,'Customer Evaluation','evaluation'],'Follow-Up Needed'=>[4,'Customer Evaluation','evaluation'],
+  'Approved'=>[5,'Customer Decision','approved'],'Rejected'=>[5,'Customer Decision','rejected'],
+  'Quoted'=>[6,'Quote / Order','converted'],'Ordered'=>[6,'Quote / Order','converted'],'Closed'=>[6,'Quote / Order','closed']
+ ];
+ $m=$map[$status]??[1,'Request Received','request'];
+ return ['step'=>$m[0],'label'=>$m[1],'class'=>$m[2]];
+}
+function xmlv($v): string { return htmlspecialchars((string)$v, ENT_XML1|ENT_QUOTES, 'UTF-8'); }
+function excel_col(int $number): string {
+ $name='';
+ while($number>0){$number--; $name=chr(65+($number%26)).$name; $number=intdiv($number,26);}
+ return $name;
+}
+$pdo=db();
+$sourceColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'request_source'")->fetch();
+if(!$sourceColumn)$pdo->exec("ALTER TABLE sample_records ADD request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status");
+$casColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'cas_number'")->fetch();
+if(!$casColumn)$pdo->exec("ALTER TABLE sample_records ADD cas_number VARCHAR(80) NULL AFTER product_name");
+$buyingColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'currently_buying'")->fetch();
+if(!$buyingColumn)$pdo->exec("ALTER TABLE sample_records ADD currently_buying VARCHAR(10) NULL AFTER application");
+$supplierColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'current_supplier'")->fetch();
+if(!$supplierColumn)$pdo->exec("ALTER TABLE sample_records ADD current_supplier VARCHAR(180) NULL AFTER currently_buying");
+$shippingAccountColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'shipping_account_number'")->fetch();
+if(!$shippingAccountColumn)$pdo->exec("ALTER TABLE sample_records ADD shipping_account_number VARCHAR(40) NULL AFTER carrier");
+$statuses=['Requested','Preparing','Ready to Ship','Shipped','Delivered','Customer Testing','Approved','Rejected','Follow-Up Needed','Quoted','Ordered','Closed'];
+
+if(($_GET['export']??'')==='xlsx'){
+ $all=$pdo->query("SELECT * FROM sample_records ORDER BY request_date DESC,id DESC")->fetchAll();
+ $columns=[
+  'id'=>'ID','sample_number'=>'Sample Number','request_date'=>'Request Date','needed_by'=>'Needed By','_stage'=>'Stage','status'=>'Status','request_source'=>'Request Source',
+  'sales_rep'=>'Sales Rep','sales_rep_email'=>'Sales Rep Email','customer_no'=>'Customer Number','customer_company'=>'Customer Company',
+  'contact_name'=>'Contact Name','contact_email'=>'Contact Email','contact_phone'=>'Contact Phone','ship_to'=>'Ship To',
+  'product_number'=>'Product Number','product_name'=>'Product Name','cas_number'=>'CAS Number','manufacturer'=>'Manufacturer / Supplier','lot_number'=>'Lot Number',
+  'sample_quantity'=>'Sample Quantity','sample_unit'=>'Sample Unit','packaging'=>'Packaging','application'=>'Customer Application','currently_buying'=>'Currently Buying / Sourcing','current_supplier'=>'Current Supplier',
+  'reason_for_sample'=>'Reason for Sample','shipping_method'=>'Shipping Method','carrier'=>'Carrier','shipping_account_number'=>'Customer Shipping Account','tracking_number'=>'Tracking Number',
+  'shipped_date'=>'Shipped Date','delivered_date'=>'Delivered Date','follow_up_date'=>'Follow-Up Date','evaluation_result'=>'Evaluation Result',
+  'customer_feedback'=>'Customer Feedback','internal_notes'=>'Internal Notes','quote_number'=>'Quote Number','order_number'=>'Order Number',
+  'created_at'=>'Created At','updated_at'=>'Updated At'
+ ];
+ if(!class_exists('ZipArchive')){http_response_code(500);exit('Excel export requires the PHP Zip extension. Please ask the website administrator to enable ZipArchive.');}
+ $cells=[];$rowNumber=1;$lastCol=excel_col(count($columns));
+ foreach(array_values($columns) as $i=>$heading){$ref=excel_col($i+1).$rowNumber;$cells[]='<c r="'.$ref.'" t="inlineStr" s="1"><is><t>'.xmlv($heading).'</t></is></c>';}
+ $sheetRows=['<row r="1" ht="30" customHeight="1">'.implode('',$cells).'</row>'];
+ foreach($all as $record){
+  $rowNumber++;$cells=[];$stage=stage_meta($record['status']??'');
+  foreach(array_keys($columns) as $i=>$key){
+   $value=$key==='_stage'?'Stage '.$stage['step'].' of 6: '.$stage['label']:($record[$key]??'');$ref=excel_col($i+1).$rowNumber;
+   if(in_array($key,['id','sample_quantity'],true)&&$value!==''&&is_numeric($value))$cells[]='<c r="'.$ref.'" s="2"><v>'.xmlv($value).'</v></c>';
+   else $cells[]='<c r="'.$ref.'" t="inlineStr" s="2"><is><t xml:space="preserve">'.xmlv($value).'</t></is></c>';
+  }
+  $sheetRows[]='<row r="'.$rowNumber.'">'.implode('',$cells).'</row>';
+ }
+ $widths=[8,20,14,14,30,20,20,20,28,18,28,22,28,18,35,18,30,18,26,18,16,14,22,35,20,26,35,20,18,22,24,14,14,14,22,38,38,18,18,20,20];
+ $cols='';foreach($widths as $i=>$width)$cols.='<col min="'.($i+1).'" max="'.($i+1).'" width="'.$width.'" customWidth="1"/>';
+ $sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'.$cols.'</cols><sheetData>'.implode('',$sheetRows).'</sheetData><autoFilter ref="A1:'.$lastCol.$rowNumber.'"/></worksheet>';
+ $files=[
+  '[Content_Types].xml'=>'<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>',
+  '_rels/.rels'=>'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>',
+  'xl/workbook.xml'=>'<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="All Samples" sheetId="1" r:id="rId1"/></sheets></workbook>',
+  'xl/_rels/workbook.xml.rels'=>'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>',
+  'xl/styles.xml'=>'<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B2A5B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border/><border><left style="thin"><color rgb="FFD5DFE7"/></left><right style="thin"><color rgb="FFD5DFE7"/></right><top style="thin"><color rgb="FFD5DFE7"/></top><bottom style="thin"><color rgb="FFD5DFE7"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>',
+  'xl/worksheets/sheet1.xml'=>$sheet,
+  'docProps/core.xml'=>'<?xml version="1.0" encoding="UTF-8"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Lowe Sample Tracking</dc:title><dc:creator>Lowe Chemical Company</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">'.gmdate('Y-m-d\TH:i:s\Z').'</dcterms:created></cp:coreProperties>',
+  'docProps/app.xml'=>'<?xml version="1.0" encoding="UTF-8"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Lowe Sample Database</Application></Properties>'
+ ];
+ $tmp=tempnam(sys_get_temp_dir(),'lowe_samples_');$zip=new ZipArchive();
+ if($zip->open($tmp,ZipArchive::CREATE|ZipArchive::OVERWRITE)!==true){http_response_code(500);exit('The Excel file could not be created.');}
+ foreach($files as $path=>$content)$zip->addFromString($path,$content);$zip->close();
+ $filename='Lowe_Sample_Tracking_'.date('Y-m-d').'.xlsx';
+ header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');header('Content-Disposition: attachment; filename="'.$filename.'"');header('Content-Length: '.filesize($tmp));header('Cache-Control: no-store');readfile($tmp);unlink($tmp);exit;
+}
+$q=trim((string)($_GET['q']??''));
+$status=trim((string)($_GET['status']??''));
+$rep=trim((string)($_GET['rep']??''));
+$from=trim((string)($_GET['from']??''));
+$to=trim((string)($_GET['to']??''));
+$where=[];$params=[];
+if($q!==''){$where[]='(sample_number LIKE :q OR customer_company LIKE :q OR contact_name LIKE :q OR product_name LIKE :q OR tracking_number LIKE :q OR quote_number LIKE :q OR order_number LIKE :q)';$params[':q']='%'.$q.'%';}
+if(in_array($status,$statuses,true)){$where[]='status=:status';$params[':status']=$status;}
+if($rep!==''){$where[]='sales_rep=:rep';$params[':rep']=$rep;}
+if($from!==''){$where[]='request_date>=:from';$params[':from']=$from;}
+if($to!==''){$where[]='request_date<=:to';$params[':to']=$to;}
+$whereSql=$where?'WHERE '.implode(' AND ',$where):'';
+$stmt=$pdo->prepare("SELECT * FROM sample_records $whereSql ORDER BY COALESCE(follow_up_date,'9999-12-31'), updated_at DESC LIMIT 500");$stmt->execute($params);$records=$stmt->fetchAll();
+$summary=$pdo->query("SELECT COUNT(*) total,SUM(status IN ('Requested','Preparing','Ready to Ship')) pending,SUM(status IN ('Shipped','Delivered','Customer Testing','Follow-Up Needed')) active,SUM(status='Approved') approved,SUM(status='Quoted') quoted,SUM(status='Ordered') ordered FROM sample_records")->fetch();
+$reps=$pdo->query("SELECT DISTINCT sales_rep FROM sample_records WHERE sales_rep IS NOT NULL AND sales_rep<>'' ORDER BY sales_rep")->fetchAll(PDO::FETCH_COLUMN);
+?>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lowe Sample Tracking</title><style>
+:root{--navy:#0B2A5B;--blue:#174F8A;--red:#D71920;--bg:#f3f6f8;--line:#d5dfe7;--muted:#637482;--green:#237a45}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,sans-serif;color:#1d2935}.page{max-width:1550px;margin:auto;padding:20px}.top{background:linear-gradient(135deg,var(--navy),#16477f);border-top:5px solid var(--red);color:#fff;padding:22px 25px;border-radius:14px;display:flex;justify-content:space-between;gap:16px;align-items:center}.top h1{margin:0;font-size:27px}.top p{margin:5px 0 0;color:#dce8f1}.actions{display:flex;gap:7px;flex-wrap:wrap}.btn{border:0;border-radius:7px;padding:9px 12px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;justify-content:center;background:#e8eef2;color:var(--navy);font-size:12px}.btn.primary{background:var(--navy);color:#fff}.btn.green{background:var(--green);color:#fff}.btn.excel{background:#167347;color:#fff}.cards{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:16px 0}.metric,.panel{background:#fff;border:1px solid var(--line);border-radius:12px}.metric{padding:14px}.metric small{color:var(--muted);font-weight:700;text-transform:uppercase}.metric strong{display:block;font-size:24px;color:var(--navy);margin-top:4px}.panel{padding:15px}.filters{display:grid;grid-template-columns:minmax(240px,2fr) repeat(4,minmax(130px,1fr)) auto;gap:9px;align-items:end}label{display:block;font-size:12px;font-weight:700;color:#455866;margin-bottom:5px}input,select{width:100%;padding:10px;border:1px solid #b9c7d1;border-radius:7px;background:#fff;font:inherit}.table-wrap{overflow:auto;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:12px}.list{width:100%;border-collapse:collapse;min-width:1280px}.list th{background:#eaf0f4;color:var(--navy);text-align:left;padding:10px;font-size:12px;text-transform:uppercase}.list td{padding:10px;border-top:1px solid #e5ebef;font-size:13px;vertical-align:top}.list tr:hover{background:#f8fbfd}.stage-cell{min-width:230px}.stage-badge{display:inline-block;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800;color:#fff}.stage-badge.request{background:#62788a}.stage-badge.preparing{background:#b85f00}.stage-badge.transit{background:#7148a3}.stage-badge.evaluation{background:#176aa5}.stage-badge.approved,.stage-badge.converted{background:#237a45}.stage-badge.rejected{background:#b3292f}.stage-badge.closed{background:#455866}.stage-track{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin-top:7px}.stage-track span{height:5px;border-radius:4px;background:#d9e1e7}.stage-track span.on{background:#2874ae}.stage-status{font-size:11px;color:#465a68;margin-top:5px;font-weight:700}.sub{font-size:11px;color:var(--muted);margin-top:3px}.late{color:#a51f25;font-weight:800}.empty{text-align:center;padding:35px;color:var(--muted)}@media(max-width:950px){.page{padding:9px}.top{align-items:flex-start;flex-direction:column}.cards{grid-template-columns:1fr 1fr 1fr}.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}}@media(max-width:560px){.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr}.filters .search{grid-column:auto}.top .btn{flex:1}.row-actions{min-width:190px}}
+.brand{display:flex;align-items:center;gap:18px}.top-logo{display:block;width:190px;max-height:72px;object-fit:contain;background:#fff;border-radius:8px;padding:9px 12px}.source-badge{display:inline-block;margin-top:5px;padding:3px 7px;border-radius:999px;background:#e7f4eb;color:#23683a;font-size:10px;font-weight:800}.source-badge.internal{background:#edf1f4;color:#596b78}@media(max-width:950px){.brand{align-items:flex-start;flex-direction:column}.top-logo{width:175px}}
+</style></head><body><main class="page"><header class="top"><div class="brand"><img class="top-logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><div><h1>Lowe Sample Tracking</h1><p>Search, review, follow up, and move customer samples toward quotes and orders.</p></div></div><div class="actions"><a class="btn" href="salesworkflow.php">← Sales Workflow</a><a class="btn" href="samplerequest.php" target="_blank" rel="noopener">Customer Request Form</a><a class="btn excel" href="sampletracking.php?export=xlsx">Download All Samples to Excel</a><a class="btn" href="pricequote.php">Price Quotes</a><a class="btn green" href="samples.php">+ Create New Sample</a></div></header>
+<section class="cards"><div class="metric"><small>Total</small><strong><?=number_format((int)($summary['total']??0))?></strong></div><div class="metric"><small>Preparing</small><strong><?=number_format((int)($summary['pending']??0))?></strong></div><div class="metric"><small>In Progress</small><strong><?=number_format((int)($summary['active']??0))?></strong></div><div class="metric"><small>Approved</small><strong><?=number_format((int)($summary['approved']??0))?></strong></div><div class="metric"><small>Quoted</small><strong><?=number_format((int)($summary['quoted']??0))?></strong></div><div class="metric"><small>Ordered</small><strong><?=number_format((int)($summary['ordered']??0))?></strong></div></section>
+<section class="panel"><form class="filters" method="get"><div class="search"><label>Search</label><input name="q" value="<?=h($q)?>" placeholder="Sample, customer, product, tracking, quote, or order"></div><div><label>Status</label><select name="status"><option value="">All statuses</option><?php foreach($statuses as $v):?><option <?=$status===$v?'selected':''?>><?=h($v)?></option><?php endforeach;?></select></div><div><label>Sales Rep</label><select name="rep"><option value="">All sales reps</option><?php foreach($reps as $v):?><option <?=$rep===$v?'selected':''?>><?=h($v)?></option><?php endforeach;?></select></div><div><label>From</label><input type="date" name="from" value="<?=h($from)?>"></div><div><label>To</label><input type="date" name="to" value="<?=h($to)?>"></div><button class="btn primary">Search</button></form></section>
+<div class="table-wrap"><table class="list"><thead><tr><th>Sample</th><th>Customer</th><th>Product</th><th>Current Stage</th><th>Shipping</th><th>Follow-Up</th><th>Quote / Order</th><th>Actions</th></tr></thead><tbody><?php if(!$records):?><tr><td colspan="8" class="empty">No sample requests match the current search.</td></tr><?php endif;?><?php foreach($records as $r):$stage=stage_meta($r['status']);?><tr><td><strong><?=h($r['sample_number'])?></strong><div class="sub"><?=h(date('M j, Y',strtotime($r['request_date'])))?> · <?=h($r['sales_rep'])?></div></td><td><strong><?=h($r['customer_company'])?></strong><div class="sub"><?=h($r['contact_name'])?><br><?=h($r['contact_email'])?></div></td><td><strong><?=h($r['product_name'])?></strong><div class="sub"><?=h($r['sample_quantity'].' '.$r['sample_unit'].' · '.$r['packaging'])?></div></td><td class="stage-cell"><span class="stage-badge <?=h($stage['class'])?>">Stage <?=h($stage['step'])?> of 6: <?=h($stage['label'])?></span><div class="stage-track" aria-label="Stage <?=h($stage['step'])?> of 6"><?php for($i=1;$i<=6;$i++):?><span class="<?=$i<=$stage['step']?'on':''?>"></span><?php endfor;?></div><div class="stage-status">Current status: <?=h($r['status'])?><?=!empty($r['evaluation_result'])?' · '.h($r['evaluation_result']):''?></div></td><td><?=h($r['carrier'])?><div class="sub"><?=h($r['tracking_number'])?></div></td><td class="<?=($r['follow_up_date']&&$r['follow_up_date']<date('Y-m-d')&&!in_array($r['status'],['Ordered','Closed']))?'late':''?>"><?=h($r['follow_up_date']?date('M j, Y',strtotime($r['follow_up_date'])):'-')?></td><td><?php if($r['quote_number']):?><a href="pricequote.php?load=<?=urlencode($r['quote_number'])?>"><?=h($r['quote_number'])?></a><?php else:?>-<?php endif;?><div class="sub"><?=h($r['order_number'])?></div></td><td><div class="actions row-actions"><a class="btn" href="samples.php?report=<?=(int)$r['id']?>">View Report</a><a class="btn primary" href="samples.php?edit=<?=(int)$r['id']?>">Open / Edit</a><a class="btn green" href="pricequote.php?sample_id=<?=(int)$r['id']?>">Create Quote</a></div></td></tr><?php endforeach;?></tbody></table></div></main></body></html>
