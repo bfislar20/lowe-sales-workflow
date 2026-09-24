@@ -5,25 +5,9 @@
   Uses the latest Lowe Master workbook saved by predictive-orders-admin.php.
 */
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
-$masterCandidates = [
-    __DIR__ . '/predictive-order-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/order-forecast-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/Lowe Master.xlsx',
-    __DIR__ . '/Lowe Master(1).xlsx',
-    __DIR__ . '/Lowe-Master-Latest.xlsx'
-];
-$masterFile = null;
-foreach ($masterCandidates as $f) {
-    if (is_file($f)) { $masterFile = $f; break; }
-}
-if (!$masterFile) {
-    http_response_code(500);
-    die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.');
-}
-
-function vp_h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+$masterFile = ld_master();\n\nfunction vp_h($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function vp_n($v,$d=0){ return number_format((float)$v,$d); }
 function vp_m($v,$d=2){ return '$'.number_format((float)$v,$d); }
 function vp_contains($h,$n){ if($n==='') return true; return function_exists('mb_stripos') ? mb_stripos((string)$h,(string)$n)!==false : stripos((string)$h,(string)$n)!==false; }
@@ -49,8 +33,8 @@ function vp_qs(array $over=[]): string {
 
 try {
     @set_time_limit(300);
-    $purchaseRows = of_assoc(of_read_sheet($masterFile,'Purchases'));
-    $openPoRows = of_assoc(of_read_sheet($masterFile,'Open Purchase Orders'));
+    $purchaseRows = ld_rows('Purchases');
+    $openPoRows = ld_rows('Open Purchase Orders');
     of_require($purchaseRows,['Supplier Name','Receipt Date','Product Name','LBs Received'],'Purchases');
     of_require($openPoRows,['PO Number','Supplier Name','Product Number','Product Name','QTY','LBS'],'Open Purchase Orders');
 } catch(Throwable $e){
