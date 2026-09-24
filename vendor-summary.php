@@ -16,7 +16,7 @@ function vs_month_label($key){ return date('M Y', strtotime($key.'-01')); }
 function vs_add_months($key,$delta){ return date('Y-m', strtotime($key.'-01 '.($delta>=0?'+':'').$delta.' months')); }
 function vs_qs(array $over=[]){ $q=array_merge($_GET,$over); foreach($q as $k=>$v){ if($v===''||$v===null) unset($q[$k]); } return '?'.http_build_query($q); }
 function vs_field(array $r,array $names,$default=''){ foreach($names as $n){ if(array_key_exists($n,$r) && $r[$n]!=='' && $r[$n]!==null) return $r[$n]; } return $default; }
-function vs_total_cost(array $r): float { return of_num(vs_field($r,['Total Item Cost','Total Cost'],0)); }
+function vs_total_cost(array $r): float { return ld_purchase_total($r); }
 
 $cacheFile = __DIR__ . '/vendor-summary-cache.json';
 $cacheVersion = 2;
