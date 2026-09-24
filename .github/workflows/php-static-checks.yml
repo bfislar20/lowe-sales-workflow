@@ -41,6 +41,7 @@ jobs:
           forbidden=(
             "config/database.php"
             "config/db.php"
+            "config/forecast-admin.php"
             "opportunity-config/app.php"
             "opportunity-config/database.php"
             ".env"
