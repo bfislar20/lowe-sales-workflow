@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 
 function post(string $key, string $default=''): string {
     return trim((string)($_POST[$key] ?? $default));
