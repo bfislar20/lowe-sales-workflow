@@ -66,15 +66,13 @@ Files currently in repository:
 - `pricequote.php`
 - `quotes.php`
 - `opportunity-quote-sync.php`
+- `api/customer_add.php`
 
 Production-only dependency:
 - `config/database.php` exposing `db(): PDO`
 
 Safe template:
 - `config/database.example.php`
-
-Additional missing runtime dependency referenced by Price Quote:
-- `api/customer_add.php`
 
 Database tables referenced:
 - `quote_records`
@@ -100,6 +98,14 @@ The current sample pages execute CREATE TABLE / ALTER TABLE schema updates durin
 
 Files currently in repository:
 - `opportunities.php`
+- `opportunity-new.php`
+- `opportunity-tasks.php`
+- `opportunity-dashboard.php`
+- `opportunity-report.php`
+- `opportunity-funnel.php`
+- `opportunity-closed.php`
+- `opportunity.php`
+- `opportunity-create-quote.php`
 - `opportunity-quote-sync.php`
 
 Production-only dependencies:
@@ -109,15 +115,6 @@ Production-only dependencies:
 Safe templates:
 - `opportunity-config/app.example.php`
 - `opportunity-config/database.example.php`
-
-Additional application pages referenced by `opportunities.php` but not yet in GitHub:
-- `opportunity-new.php`
-- `opportunity-tasks.php`
-- `opportunity-dashboard.php`
-- `opportunity-report.php`
-- `opportunity-funnel.php`
-- `opportunity-closed.php`
-- `opportunity.php`
 
 Database tables referenced:
 - `opportunities`
@@ -130,14 +127,6 @@ Database tables referenced:
 Files currently in repository:
 - `vendor-pricing-request.php`
 - `rfq-list.php`
-
-Production-only dependency:
-- `config/db.php` exposing `db()`
-
-Safe template:
-- `config/db.example.php`
-
-Additional runtime pages referenced but not yet in GitHub:
 - `save-rfq.php`
 - `download-rfqs-xlsx.php`
 - `email-rfqs-xlsx.php`
@@ -145,6 +134,17 @@ Additional runtime pages referenced but not yet in GitHub:
 - `rfq-responses.php`
 - `rfq-edit.php`
 - `delete-rfq.php`
+- `send-rfq.php`
+- `rfq-comparison.php`
+- `update-rfq.php`
+- `clone-rfq.php`
+- `sourcing-functions.php`
+
+Production-only dependency:
+- `config/db.php` exposing `db()`
+
+Safe template:
+- `config/db.example.php`
 
 Database tables referenced:
 - `rfqs`
@@ -166,31 +166,14 @@ Only `.example.php` templates belong in source control.
 
 ## Current unresolved runtime files
 
-The codebase cannot yet be treated as a complete deployable copy because these non-secret application files are still missing from GitHub:
-
-- `api/customer_add.php`
-- `opportunity-new.php`
-- `opportunity-tasks.php`
-- `opportunity-dashboard.php`
-- `opportunity-report.php`
-- `opportunity-funnel.php`
-- `opportunity-closed.php`
-- `opportunity.php`
-- `save-rfq.php`
-- `download-rfqs-xlsx.php`
-- `email-rfqs-xlsx.php`
-- `rfq-view.php`
-- `rfq-responses.php`
-- `rfq-edit.php`
-- `delete-rfq.php`
+No non-secret PHP application files are currently unresolved. The production-only configuration files listed above remain intentionally absent from source control.
 
 ## Recommended next phase
 
-1. Import the missing non-secret application files listed above.
-2. Leave credentials on SiteGround only.
-3. Audit database schema ownership and move runtime schema changes out of Samples.
-4. Standardize navigation/header helpers across Quotes, Samples, Opportunities, and RFQs.
-5. Add syntax/static checks before merging the development branch into main.
+1. Leave credentials on SiteGround only.
+2. Audit database schema ownership and move runtime schema changes out of Samples.
+3. Standardize navigation/header helpers across Quotes, Samples, Opportunities, and RFQs.
+4. Add syntax/static checks before merging the development branch into main.
 
 
 ## Cross-reference audit status
