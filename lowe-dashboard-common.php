@@ -8,6 +8,15 @@ function ld_master():string{foreach([__DIR__.'/predictive-order-files/Lowe-Maste
 function ld_rows(string $sheet):array{return of_assoc(of_read_sheet(ld_master(),$sheet));}
 function ld_key($v):string{return strtoupper(trim(preg_replace('/\s+/',' ',(string)$v)));}
 function ld_contains($a,$b):bool{return $b===''||stripos((string)$a,(string)$b)!==false;}
+function ld_field(array $r,array $names,$default=''){foreach($names as $n){if(array_key_exists($n,$r)&&$r[$n]!==''&&$r[$n]!==null)return $r[$n];}return $default;}
+function ld_purchase_total(array $r):float{return of_num(ld_field($r,['Total Item Cost','Total Cost'],0));}
+function ld_purchase_lbs(array $r):float{return of_num(ld_field($r,['LBs Received','LBS Received','Total LBS'],0));}
+function ld_purchase_cost_lb(array $r):float{
+    $direct=of_num(ld_field($r,['Cost/LB','Cost Per LB'],0));
+    if(abs($direct)>0.0000001)return $direct;
+    $lbs=ld_purchase_lbs($r);$cost=ld_purchase_total($r);
+    return abs($lbs)>0.0000001?$cost/$lbs:0.0;
+}
 function ld_nav():string{return '<a class="workflow-link" href="salesworkflow.php">Back to Sales Workflow</a>';}
 function ld_head(string $title,string $sub):void{echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>'.ld_h($title).' | Lowe Chemical</title><style>'.ld_css().'</style></head><body><header><div class="head"><div class="brand"><img src="/images/lowe-logo.png" alt="Lowe Chemical"><div><h1>'.ld_h($title).'</h1><p>'.ld_h($sub).'</p></div></div>'.ld_nav().'</div></header><main>';}
 function ld_foot():void{echo '</main></body></html>';}
