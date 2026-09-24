@@ -16,7 +16,9 @@ function ss_lbs_uom(array $r): float { return of_num(ss_field($r,['LBs Per Stock
 function ss_cost_lb(array $r): float { return ld_purchase_cost_lb($r); }
 
 
-$workbook=ld_master();\n\n$cacheFile=__DIR__.'/supplier-scorecard-cache.json';
+$workbook=ld_master();
+
+$cacheFile=__DIR__.'/supplier-scorecard-cache.json';
 $cacheVersion=2;
 $mtime=(int)(filemtime($workbook)?:0);
 $payload=null;
