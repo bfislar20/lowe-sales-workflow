@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function ss_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function ss_num($v,$d=0): string { return number_format((float)$v,$d); }
@@ -16,17 +16,7 @@ function ss_lbs_uom(array $r): float { return of_num(ss_field($r,['LBs Per Stock
 function ss_cost_lb(array $r): float { $v=of_num(ss_field($r,['Cost/LB'],0)); if($v>0)return $v; $lbs=of_num(ss_field($r,['LBs Received'],0)); $cost=ss_purchase_total($r); return $lbs!=0?$cost/$lbs:0; }
 
 
-$workbook=null;
-foreach([
-  __DIR__.'/predictive-order-files/Lowe-Master-Latest.xlsx',
-  __DIR__.'/order-forecast-files/Lowe-Master-Latest.xlsx',
-  __DIR__.'/Lowe Master.xlsx',
-  __DIR__.'/Lowe Master(1).xlsx',
-  __DIR__.'/Lowe-Master-Latest.xlsx'
-] as $f){ if(is_file($f)){ $workbook=$f; break; } }
-if(!$workbook){ http_response_code(500); die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.'); }
-
-$cacheFile=__DIR__.'/supplier-scorecard-cache.json';
+$workbook=ld_master();\n\n$cacheFile=__DIR__.'/supplier-scorecard-cache.json';
 $cacheVersion=2;
 $mtime=(int)(filemtime($workbook)?:0);
 $payload=null;
@@ -37,7 +27,7 @@ if(is_file($cacheFile)){
 
 if(!$payload){
   @set_time_limit(300);
-  $rows=of_assoc(of_read_sheet($workbook,'Purchases'));
+  $rows=ld_rows('Purchases');
   of_require($rows,['PO Number','Release Number','Supplier Name','Supplier Number','Receipt Date','Product Name','Product Number','Purchasing UOM','Qty Ordered','Qty Received','LBs Per Stocking Unit','LBs Received','Total Item Cost'],'Purchases');
 
   $latest=null;
@@ -122,7 +112,7 @@ $suppliers=array_map(fn($r)=>$r['supplier'],$payload['suppliers']); sort($suppli
 $purchaseDetail=[]; $purchaseDetailTotals=['lbs'=>0.0,'spend'=>0.0,'lines'=>0,'pos'=>[]];
 if($detail==='purchases' && $detailSupplier!==''){
   @set_time_limit(300);
-  $purchaseRows=of_assoc(of_read_sheet($workbook,'Purchases'));
+  $purchaseRows=ld_rows('Purchases');
   foreach($purchaseRows as $r){
     $d=of_date($r['Receipt Date']??'');
     if(!$d || $d<$payload['ytd_start'] || $d>$payload['ytd_end']) continue;
