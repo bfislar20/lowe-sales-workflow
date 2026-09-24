@@ -1,68 +1,14 @@
 <?php
 session_start();
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/sample-schema.php';
 date_default_timezone_set('America/Chicago');
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function sample_no(): string { return 'LS-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)); }
 
 $pdo = db();
-$pdo->exec("CREATE TABLE IF NOT EXISTS sample_records (
- id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
- sample_number VARCHAR(40) NOT NULL UNIQUE,
- request_date DATE NOT NULL,
- needed_by DATE NULL,
- status VARCHAR(30) NOT NULL DEFAULT 'Requested',
- sales_rep VARCHAR(120) NULL,
- sales_rep_email VARCHAR(190) NULL,
- customer_no VARCHAR(60) NULL,
- customer_company VARCHAR(180) NOT NULL,
- contact_name VARCHAR(150) NULL,
- contact_email VARCHAR(190) NULL,
- contact_phone VARCHAR(60) NULL,
- ship_to TEXT NULL,
- product_number VARCHAR(80) NULL,
- product_name VARCHAR(220) NOT NULL,
- cas_number VARCHAR(80) NULL,
- manufacturer VARCHAR(160) NULL,
- lot_number VARCHAR(100) NULL,
- sample_quantity DECIMAL(12,3) NOT NULL DEFAULT 0,
- sample_unit VARCHAR(20) NOT NULL DEFAULT 'LB',
- packaging VARCHAR(160) NULL,
- application TEXT NULL,
- currently_buying VARCHAR(10) NULL,
- current_supplier VARCHAR(180) NULL,
- reason_for_sample TEXT NULL,
- shipping_method VARCHAR(80) NULL,
- carrier VARCHAR(100) NULL,
- shipping_account_number VARCHAR(40) NULL,
- tracking_number VARCHAR(150) NULL,
- shipped_date DATE NULL,
- delivered_date DATE NULL,
- follow_up_date DATE NULL,
- evaluation_result VARCHAR(30) NULL,
- customer_feedback TEXT NULL,
- internal_notes TEXT NULL,
- quote_number VARCHAR(50) NULL,
- order_number VARCHAR(50) NULL,
- created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
- INDEX idx_sample_customer (customer_company), INDEX idx_sample_product (product_name),
- INDEX idx_sample_status (status), INDEX idx_sample_followup (follow_up_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-$repEmailColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'sales_rep_email'")->fetch();
-if (!$repEmailColumn) $pdo->exec("ALTER TABLE sample_records ADD sales_rep_email VARCHAR(190) NULL AFTER sales_rep");
-$sourceColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'request_source'")->fetch();
-if (!$sourceColumn) $pdo->exec("ALTER TABLE sample_records ADD request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status");
-$casColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'cas_number'")->fetch();
-if (!$casColumn) $pdo->exec("ALTER TABLE sample_records ADD cas_number VARCHAR(80) NULL AFTER product_name");
-$buyingColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'currently_buying'")->fetch();
-if (!$buyingColumn) $pdo->exec("ALTER TABLE sample_records ADD currently_buying VARCHAR(10) NULL AFTER application");
-$supplierColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'current_supplier'")->fetch();
-if (!$supplierColumn) $pdo->exec("ALTER TABLE sample_records ADD current_supplier VARCHAR(180) NULL AFTER currently_buying");
-$shippingAccountColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'shipping_account_number'")->fetch();
-if (!$shippingAccountColumn) $pdo->exec("ALTER TABLE sample_records ADD shipping_account_number VARCHAR(40) NULL AFTER carrier");
-
+sample_schema_assert($pdo);
 $statuses = ['Requested','Preparing','Ready to Ship','Shipped','Delivered','Customer Testing','Approved','Rejected','Follow-Up Needed','Quoted','Ordered','Closed'];
 $results = ['','Pending','Approved','Rejected','Needs Another Sample','No Response'];
 $units = ['OZ','LB','G','KG','ML','GAL','EA','BAG','PAIL','DRUM','TOTE'];
