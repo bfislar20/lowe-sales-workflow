@@ -208,7 +208,8 @@ try {
         $pdo->rollBack();
     }
 
-    fail('Database update failed: '.$e->getMessage(), 500);
+    lowe_log_exception($e, 'RFQ update failed');
+    fail(lowe_safe_error('The RFQ could not be updated because of a server error. Please try again.'), 500);
 }
 
 header('Location: rfq-view.php?id='.(int)$id.'&updated=1');
