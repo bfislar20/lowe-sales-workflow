@@ -4,3 +4,5 @@ config/db.php
 opportunity-config/app.php
 .env
 .env.*
+
+opportunity-config/database.php
