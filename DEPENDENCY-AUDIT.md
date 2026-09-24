@@ -191,3 +191,23 @@ The codebase cannot yet be treated as a complete deployable copy because these n
 3. Audit database schema ownership and move runtime schema changes out of Samples.
 4. Standardize navigation/header helpers across Quotes, Samples, Opportunities, and RFQs.
 5. Add syntax/static checks before merging the development branch into main.
+
+
+## Cross-reference audit status
+
+A repository-wide pass over PHP page links, form actions, script sources, and JavaScript fetch calls found no remaining references to non-secret PHP application files outside the repository.
+
+The only intentionally absent runtime PHP files are production configuration/credential files:
+
+- `config/database.php`
+- `config/db.php`
+- `opportunity-config/app.php`
+- `opportunity-config/database.php`
+
+Safe `.example.php` templates exist in the development branch for these configuration families.
+
+`api/customer_add.php` is present at the path expected by `pricequote.php`.
+
+The legacy `inventory-model.php` remains in the development branch for rollback/reference, but current inventory reports have been standardized on `inventory-model-v2.php` or the shared Lowe Master reader as documented above.
+
+At this point, the development branch is structurally complete enough for code cleanup and testing without requiring additional non-secret PHP files from production.
