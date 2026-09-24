@@ -5,24 +5,9 @@
   Uses the latest Lowe Master workbook saved by predictive-orders-admin.php.
 */
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
-$masterCandidates = [
-    __DIR__ . '/predictive-order-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/order-forecast-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/Lowe Master.xlsx',
-    __DIR__ . '/Lowe Master(1).xlsx'
-];
-$masterFile = null;
-foreach ($masterCandidates as $f) {
-    if (is_file($f)) { $masterFile = $f; break; }
-}
-if (!$masterFile) {
-    http_response_code(500);
-    die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.');
-}
-
-function vs_esc($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+$masterFile = ld_master();\n\nfunction vs_esc($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function vs_num($v,$d=0){ return number_format((float)$v,$d); }
 function vs_money($v){ return '$'.number_format((float)$v,0); }
 function vs_contains($h,$n){ if($n==='') return true; return function_exists('mb_stripos') ? mb_stripos((string)$h,(string)$n)!==false : stripos((string)$h,(string)$n)!==false; }
@@ -44,7 +29,7 @@ if (is_file($cacheFile)) {
 
 if (!$cache) {
     @set_time_limit(300);
-    $rows = of_assoc(of_read_sheet($masterFile, 'Purchases'));
+    $rows = ld_rows('Purchases');
     of_require($rows, ['Supplier Name','Supplier Number','Receipt Date','Product Name','LBs Received'], 'Purchases');
 
     $latest = null;
