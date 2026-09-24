@@ -11,9 +11,9 @@ function ss_norm($v): string { return preg_replace('/\s+/',' ',strtoupper(trim((
 function ss_contains($h,$n): bool { if($n==='') return true; return function_exists('mb_stripos')?mb_stripos((string)$h,(string)$n)!==false:stripos((string)$h,(string)$n)!==false; }
 function ss_qs(array $over=[]): string { $q=array_merge($_GET,$over); foreach($q as $k=>$v){ if($v===''||$v===null) unset($q[$k]); } return '?'.http_build_query($q); }
 function ss_field(array $r,array $names,$default=''){ foreach($names as $n){ if(array_key_exists($n,$r) && $r[$n]!=='' && $r[$n]!==null) return $r[$n]; } return $default; }
-function ss_purchase_total(array $r): float { return of_num(ss_field($r,['Total Item Cost','Total Cost'],0)); }
+function ss_purchase_total(array $r): float { return ld_purchase_total($r); }
 function ss_lbs_uom(array $r): float { return of_num(ss_field($r,['LBs Per Stocking Unit','LBs/UOM'],0)); }
-function ss_cost_lb(array $r): float { $v=of_num(ss_field($r,['Cost/LB'],0)); if($v>0)return $v; $lbs=of_num(ss_field($r,['LBs Received'],0)); $cost=ss_purchase_total($r); return $lbs!=0?$cost/$lbs:0; }
+function ss_cost_lb(array $r): float { return ld_purchase_cost_lb($r); }
 
 
 $workbook=ld_master();\n\n$cacheFile=__DIR__.'/supplier-scorecard-cache.json';
