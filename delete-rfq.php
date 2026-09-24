@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 
 function fail(string $message, int $code=400): never {
     http_response_code($code);
@@ -41,7 +42,8 @@ try {
     $pdo->commit();
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    fail('Database delete failed: '.$e->getMessage(), 500);
+    lowe_log_exception($e, 'RFQ delete failed');
+    fail(lowe_safe_error('The RFQ could not be deleted because of a server error. Please try again.'), 500);
 }
 
 $_SESSION['rfq_delete_csrf'] = bin2hex(random_bytes(24));
