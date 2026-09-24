@@ -1,6 +1,7 @@
 <?php
 session_start();require_once __DIR__ . '/opportunity-quote-sync.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 
 /*
  * Lowe Chemical Price Quote Builder
@@ -921,7 +922,7 @@ body.mobile-mode .page{max-width:none;padding:8px}body.mobile-mode .topbar{paddi
             <p>Create Lowe Chemical customer quotations, preview them, print/save as PDF, or email them directly.</p>
         </div>
         <div class="actions">
-            <a href="salesworkflow.php" class="btn btn-outline">← Sales Workflow</a>
+            <?=workflow_back_link('btn btn-outline')?>
             <a href="quotes.php" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">Quote History</a>
             <button type="button" class="btn" onclick="showDeviceGate()">Change Device</button>
             <button type="button" class="btn btn-primary" onclick="document.getElementById('quoteForm').requestSubmit(document.getElementById('previewBtn'))">Preview Quote</button>
