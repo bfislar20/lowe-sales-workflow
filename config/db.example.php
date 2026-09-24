@@ -1,11 +1,20 @@
 <?php
-/**
- * Safe template only. Do not commit production credentials.
- * Copy to config/db.php on the server and fill in the real values there.
- */
-$host = 'YOUR_DATABASE_HOST';
-$dbname = 'YOUR_DATABASE_NAME';
-$username = 'YOUR_DATABASE_USER';
-$password = 'YOUR_DATABASE_PASSWORD';
+declare(strict_types=1);
 
-// Match the connection variable/API expected by the production db.php.
+/**
+ * Example RFQ database configuration.
+ *
+ * Copy to config/db.php on production and fill in the real
+ * connection values there. Do not commit the real file.
+ */
+
+// Example:
+// $pdo = new PDO(
+//     'mysql:host=YOUR_DATABASE_HOST;dbname=YOUR_DATABASE_NAME;charset=utf8mb4',
+//     'YOUR_DATABASE_USER',
+//     'YOUR_DATABASE_PASSWORD',
+//     [
+//         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+//         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+//     ]
+// );
