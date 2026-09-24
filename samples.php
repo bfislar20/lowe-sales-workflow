@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/sample-schema.php';
 require_once __DIR__ . '/includes/workflow-nav.php';
+require_once __DIR__ . '/includes/security.php';
 date_default_timezone_set('America/Chicago');
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -80,7 +81,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } else $_SESSION['sample_message']='Sample record saved.';
     header('Location: samples.php?report='.$id); exit;
    }
-   catch(Throwable $e){ $error=$e->getMessage(); }
+   catch(Throwable $e){ lowe_log_exception($e,'Samples save/email'); $error=lowe_safe_error('The sample could not be saved or emailed. Please try again or contact Lowe Chemical support.'); }
   }
  }
 }
