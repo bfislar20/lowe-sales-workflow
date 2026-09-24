@@ -2,6 +2,7 @@
 session_start();require_once __DIR__ . '/opportunity-quote-sync.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/workflow-nav.php';
+require_once __DIR__ . '/includes/security.php';
 
 /*
  * Lowe Chemical Price Quote Builder
@@ -528,7 +529,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !empty($_GET['load'])) {
             $messageType = 'error';
         }
     } catch (Throwable $e) {
-        $message = 'Unable to load quote history: ' . $e->getMessage();
+        lowe_log_exception($e, 'Price Quote history load failed');
+        $message = lowe_safe_error('Unable to load the saved quote right now. Please try again.');
         $messageType = 'error';
     }
 }
@@ -623,7 +625,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $messageType = 'success';
         }
     } catch (Throwable $e) {
-        $message = 'The quote was created, but it could not be saved to Quote History: ' . $e->getMessage();
+        lowe_log_exception($e, 'Price Quote archive save failed');
+        $message = lowe_safe_error('The quote was created, but it could not be saved to Quote History. Please try again.');
         $messageType = 'error';
     }
 
