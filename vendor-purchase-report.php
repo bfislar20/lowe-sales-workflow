@@ -18,13 +18,9 @@ function vp_prodno(array $r): string { return trim((string)vp_field($r,['Product
 function vp_qtyord(array $r): float { return of_num(vp_field($r,['Qty Ordered','Qty Ord.'],0)); }
 function vp_qtyrec(array $r): float { return of_num(vp_field($r,['Qty Received','Qty Rec.'],0)); }
 function vp_uom(array $r): string { return trim((string)vp_field($r,['Purchasing UOM','UOM'],'')); }
-function vp_lbs(array $r): float { return of_num(vp_field($r,['LBs Received','LBS Received','Total LBS'],0)); }
-function vp_cost(array $r): float { return of_num(vp_field($r,['Total Item Cost','Total Cost'],0)); }
-function vp_costlb(array $r): float {
-    $direct=of_num(vp_field($r,['Cost/LB','Cost Per LB'],0));
-    if($direct!=0) return $direct;
-    $lbs=vp_lbs($r); return $lbs!=0 ? vp_cost($r)/$lbs : 0.0;
-}
+function vp_lbs(array $r): float { return ld_purchase_lbs($r); }
+function vp_cost(array $r): float { return ld_purchase_total($r); }
+function vp_costlb(array $r): float { return ld_purchase_cost_lb($r); }
 function vp_qs(array $over=[]): string {
     $q=array_merge($_GET,$over);
     foreach($q as $k=>$v){ if($v===''||$v===null) unset($q[$k]); }
