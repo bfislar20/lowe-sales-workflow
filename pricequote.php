@@ -505,6 +505,11 @@ $defaultQuote = [
     ]
 ];
 
+if (empty($_SESSION['pricequote_csrf_token'])) {
+    $_SESSION['pricequote_csrf_token'] = bin2hex(random_bytes(32));
+}
+$priceQuoteCsrf = $_SESSION['pricequote_csrf_token'];
+
 $quote = $_SESSION['lowe_quote'] ?? $defaultQuote;
 $message = '';
 $messageType = 'success';
@@ -529,6 +534,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !empty($_GET['load'])) {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $submittedCsrf = (string)($_POST['csrf_token'] ?? '');
+    if ($submittedCsrf === '' || !hash_equals($priceQuoteCsrf, $submittedCsrf)) {
+        http_response_code(403);
+        die('Your session expired. Refresh the Price Quote page and try again.');
+    }
+
     $action = $_POST['action'] ?? 'preview';
 
     if ($action === 'new_quote') {
@@ -936,7 +947,7 @@ body.mobile-mode .page{max-width:none;padding:8px}body.mobile-mode .topbar{paddi
         <div class="message <?= h($messageType) ?> no-print"><?= h($message) ?></div>
     <?php endif; ?>
 
-    <form method="post" id="quoteForm" class="editor no-print">
+    <form method="post" id="quoteForm" class="editor no-print"><input type="hidden" name="csrf_token" value="<?=h($priceQuoteCsrf)?>">
         <div class="grid">
             <div class="card">
                 <h2>Quote Information</h2>
@@ -1707,7 +1718,7 @@ async function saveNewCustomer(){
  };
  btn.disabled=true;btn.textContent='Adding...';err.classList.remove('show');
  try{
-   const r=await fetch('api/customer_add.php',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+   payload.csrf_token=<?=json_encode($priceQuoteCsrf)?>; const r=await fetch('api/customer_add.php',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
    const data=await r.json();
    if(!r.ok||data.ok===false) throw new Error(data.error||'Unable to add customer.');
    await selectCustomer(data.customer);
