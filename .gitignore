@@ -1,0 +1,8 @@
+# Production secrets and local configuration
+/config/database.php
+/config/db.php
+/opportunity-config/app.php
+
+# Generated/local data
+*.log
+.DS_Store
