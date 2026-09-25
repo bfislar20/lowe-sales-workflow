@@ -48,13 +48,16 @@ CREATE TABLE IF NOT EXISTS sample_records (
  INDEX idx_sample_followup (follow_up_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Upgrade statements for older installations.
--- MySQL 8+ supports ADD COLUMN IF NOT EXISTS. If your server is older,
--- inspect the table first and run only the needed ALTER statements.
+-- For an EXISTING table, inspect its columns before applying any upgrade:
+-- SHOW COLUMNS FROM sample_records;
+-- Run ONLY the ALTER statements below for columns that are missing. Remove
+-- the comment marker from each needed statement and execute it separately.
+-- MySQL does not accept ADD COLUMN IF NOT EXISTS; rerunning an ADD for a
+-- column that already exists will fail. Back up the table before upgrading.
 
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status;
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS sales_rep_email VARCHAR(190) NULL AFTER sales_rep;
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS cas_number VARCHAR(80) NULL AFTER product_name;
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS currently_buying VARCHAR(10) NULL AFTER application;
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS current_supplier VARCHAR(180) NULL AFTER currently_buying;
-ALTER TABLE sample_records ADD COLUMN IF NOT EXISTS shipping_account_number VARCHAR(40) NULL AFTER carrier;
+-- ALTER TABLE sample_records ADD COLUMN request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status;
+-- ALTER TABLE sample_records ADD COLUMN sales_rep_email VARCHAR(190) NULL AFTER sales_rep;
+-- ALTER TABLE sample_records ADD COLUMN cas_number VARCHAR(80) NULL AFTER product_name;
+-- ALTER TABLE sample_records ADD COLUMN currently_buying VARCHAR(10) NULL AFTER application;
+-- ALTER TABLE sample_records ADD COLUMN current_supplier VARCHAR(180) NULL AFTER currently_buying;
+-- ALTER TABLE sample_records ADD COLUMN shipping_account_number VARCHAR(40) NULL AFTER carrier;
