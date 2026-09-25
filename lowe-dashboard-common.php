@@ -4,7 +4,18 @@ require_once __DIR__ . '/predictive-order-engine.php';
 function ld_h($v):string{return htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');}
 function ld_n($v,$d=0):string{return number_format((float)$v,$d);}
 function ld_money($v,$d=0):string{return '$'.number_format((float)$v,$d);}
-function ld_master():string{foreach([__DIR__.'/predictive-order-files/Lowe-Master-Latest.xlsx',__DIR__.'/Lowe Master.xlsx',__DIR__.'/Lowe-Master-Latest.xlsx'] as $p)if(is_file($p))return $p; throw new RuntimeException('Lowe Master workbook not found. Upload it from predictive-orders-admin.php.');}
+function ld_master():string{
+    foreach ([
+        __DIR__.'/predictive-order-files/Lowe-Master-Latest.xlsx',
+        __DIR__.'/order-forecast-files/Lowe-Master-Latest.xlsx',
+        __DIR__.'/Lowe Master.xlsx',
+        __DIR__.'/Lowe Master(1).xlsx',
+        __DIR__.'/Lowe-Master-Latest.xlsx',
+    ] as $p) {
+        if (is_file($p)) return $p;
+    }
+    throw new RuntimeException('Lowe Master workbook not found. Upload it from predictive-orders-admin.php.');
+}
 function ld_rows(string $sheet):array{return of_assoc(of_read_sheet(ld_master(),$sheet));}
 function ld_key($v):string{return strtoupper(trim(preg_replace('/\s+/',' ',(string)$v)));}
 function ld_contains($a,$b):bool{return $b===''||stripos((string)$a,(string)$b)!==false;}
