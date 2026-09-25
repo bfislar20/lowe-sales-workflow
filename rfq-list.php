@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 
 $error = null;
 $rows = [];
@@ -35,7 +36,8 @@ try {
         LIMIT 200
     ")->fetchAll();
 } catch (Throwable $e) {
-    $error = $e->getMessage();
+    lowe_log_exception($e,'RFQ list load');
+    $error = lowe_safe_error('The RFQ dashboard could not load its database data.');
 }
 
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }

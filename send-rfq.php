@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 const SOURCING_EMAIL = 'Sourcing@lowechemical.com';
 const LOWE_FROM_EMAIL = 'Sourcing@lowechemical.com';
 const LOWE_FROM_NAME = 'Lowe Chemical Sourcing';
@@ -388,7 +389,7 @@ foreach($suppliers as $sup){
         $pricingUrl=supplierPricingUrl($token);
         $ok=sendSupplierMail($email,$d,$rfq,$pricingUrl);
         if(!$ok) $err='SiteGround/PHP mail() did not accept the message for delivery.';
-    }catch(Throwable $e){$err=$e->getMessage();}
+    }catch(Throwable $e){lowe_log_exception($e, 'Supplier RFQ email send failed for '.$supplierName);$err='The supplier email could not be sent because of a server error.';}
 
     if($ok){
         $successCount++;
@@ -419,7 +420,8 @@ try{
     $pdo->commit();
 }catch(Throwable $e){
     if($pdo->inTransaction())$pdo->rollBack();
-    fail('The email attempt completed, but the database status could not be updated: '.$e->getMessage(),500);
+    lowe_log_exception($e, 'RFQ email status update failed');
+    fail(lowe_safe_error('The email attempt completed, but the RFQ status could not be updated because of a server error.'),500);
 }
 
 if($successCount>0){

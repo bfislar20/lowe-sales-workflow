@@ -1,68 +1,16 @@
 <?php
 session_start();
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/sample-schema.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
+require_once __DIR__ . '/includes/security.php';
 date_default_timezone_set('America/Chicago');
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function sample_no(): string { return 'LS-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)); }
 
 $pdo = db();
-$pdo->exec("CREATE TABLE IF NOT EXISTS sample_records (
- id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
- sample_number VARCHAR(40) NOT NULL UNIQUE,
- request_date DATE NOT NULL,
- needed_by DATE NULL,
- status VARCHAR(30) NOT NULL DEFAULT 'Requested',
- sales_rep VARCHAR(120) NULL,
- sales_rep_email VARCHAR(190) NULL,
- customer_no VARCHAR(60) NULL,
- customer_company VARCHAR(180) NOT NULL,
- contact_name VARCHAR(150) NULL,
- contact_email VARCHAR(190) NULL,
- contact_phone VARCHAR(60) NULL,
- ship_to TEXT NULL,
- product_number VARCHAR(80) NULL,
- product_name VARCHAR(220) NOT NULL,
- cas_number VARCHAR(80) NULL,
- manufacturer VARCHAR(160) NULL,
- lot_number VARCHAR(100) NULL,
- sample_quantity DECIMAL(12,3) NOT NULL DEFAULT 0,
- sample_unit VARCHAR(20) NOT NULL DEFAULT 'LB',
- packaging VARCHAR(160) NULL,
- application TEXT NULL,
- currently_buying VARCHAR(10) NULL,
- current_supplier VARCHAR(180) NULL,
- reason_for_sample TEXT NULL,
- shipping_method VARCHAR(80) NULL,
- carrier VARCHAR(100) NULL,
- shipping_account_number VARCHAR(40) NULL,
- tracking_number VARCHAR(150) NULL,
- shipped_date DATE NULL,
- delivered_date DATE NULL,
- follow_up_date DATE NULL,
- evaluation_result VARCHAR(30) NULL,
- customer_feedback TEXT NULL,
- internal_notes TEXT NULL,
- quote_number VARCHAR(50) NULL,
- order_number VARCHAR(50) NULL,
- created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
- updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
- INDEX idx_sample_customer (customer_company), INDEX idx_sample_product (product_name),
- INDEX idx_sample_status (status), INDEX idx_sample_followup (follow_up_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-$repEmailColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'sales_rep_email'")->fetch();
-if (!$repEmailColumn) $pdo->exec("ALTER TABLE sample_records ADD sales_rep_email VARCHAR(190) NULL AFTER sales_rep");
-$sourceColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'request_source'")->fetch();
-if (!$sourceColumn) $pdo->exec("ALTER TABLE sample_records ADD request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status");
-$casColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'cas_number'")->fetch();
-if (!$casColumn) $pdo->exec("ALTER TABLE sample_records ADD cas_number VARCHAR(80) NULL AFTER product_name");
-$buyingColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'currently_buying'")->fetch();
-if (!$buyingColumn) $pdo->exec("ALTER TABLE sample_records ADD currently_buying VARCHAR(10) NULL AFTER application");
-$supplierColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'current_supplier'")->fetch();
-if (!$supplierColumn) $pdo->exec("ALTER TABLE sample_records ADD current_supplier VARCHAR(180) NULL AFTER currently_buying");
-$shippingAccountColumn = $pdo->query("SHOW COLUMNS FROM sample_records LIKE 'shipping_account_number'")->fetch();
-if (!$shippingAccountColumn) $pdo->exec("ALTER TABLE sample_records ADD shipping_account_number VARCHAR(40) NULL AFTER carrier");
-
+sample_schema_assert($pdo);
 $statuses = ['Requested','Preparing','Ready to Ship','Shipped','Delivered','Customer Testing','Approved','Rejected','Follow-Up Needed','Quoted','Ordered','Closed'];
 $results = ['','Pending','Approved','Rejected','Needs Another Sample','No Response'];
 $units = ['OZ','LB','G','KG','ML','GAL','EA','BAG','PAIL','DRUM','TOTE'];
@@ -133,7 +81,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } else $_SESSION['sample_message']='Sample record saved.';
     header('Location: samples.php?report='.$id); exit;
    }
-   catch(Throwable $e){ $error=$e->getMessage(); }
+   catch(Throwable $e){ lowe_log_exception($e,'Samples save/email'); $error=lowe_safe_error('The sample could not be saved or emailed. Please try again or contact Lowe Chemical support.'); }
   }
  }
 }
@@ -152,7 +100,7 @@ if ((!empty($_GET['report']) && !empty($record['id'])) || (!empty($_GET['preview
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sample Report <?=h($record['sample_number'])?></title><style>
 *{box-sizing:border-box}body{margin:0;background:#eef2f5;font-family:Arial,sans-serif;color:#1d2935}.tools{max-width:900px;margin:18px auto;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:700;text-decoration:none;cursor:pointer;background:#0B2A5B;color:#fff}.btn.light{background:#fff;color:#0B2A5B;border:1px solid #c9d5df}.report{max-width:900px;margin:0 auto 30px;background:#fff;border-top:6px solid #D71920;box-shadow:0 8px 30px #0002;padding:38px}.head{display:flex;justify-content:space-between;gap:28px;border-bottom:4px solid #0B2A5B;padding-bottom:18px;margin-bottom:22px}.logo{max-width:490px;width:58%;height:auto;object-fit:contain;object-position:left top}.title{text-align:right}.title h1{margin:0;color:#0B2A5B;font-size:28px}.title strong{display:block;margin-top:8px}.status{display:inline-block;margin-top:8px;padding:6px 10px;background:#eef4f8;color:#0B2A5B;border-radius:20px;font-weight:700}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.box{border:1px solid #d5dfe7;border-radius:9px;padding:16px}.box h2{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#647586;margin:0 0 10px}.box p{margin:5px 0;line-height:1.5}.wide{grid-column:1/-1}.product{font-size:21px;color:#0B2A5B;font-weight:800}.label{color:#647586;font-size:12px;font-weight:700;text-transform:uppercase;margin-top:12px}.footer{text-align:center;border-top:2px solid #0B2A5B;margin-top:24px;padding-top:14px;color:#506171;font-size:11px;line-height:1.6}.tag{color:#0B2A5B;font-weight:700;font-style:italic;font-size:13px}.notice{margin-top:18px;background:#eef4f8;border:1px solid #cbd8e2;padding:12px;text-align:center;color:#0B2A5B;font-weight:700}@media(max-width:650px){.report{padding:20px}.head{flex-direction:column}.logo{width:100%}.title{text-align:left}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.tools{padding:0 10px}.tools .btn{flex:1;text-align:center}}@media print{body{background:#fff}.tools{display:none}.report{box-shadow:none;margin:0;max-width:none;padding:22px;border-top-width:5px}@page{margin:.35in}}
-</style></head><body><div class="tools"><a class="btn light" href="salesworkflow.php">← Sales Workflow</a><?php if(!empty($_GET['preview'])):?><a class="btn light" href="samples.php?resume_preview=1">Continue Editing</a><?php else:?><a class="btn light" href="samples.php?edit=<?=(int)$record['id']?>">Edit Sample</a><?php endif;?><?php if(!empty($record['id'])):?><a class="btn" href="pricequote.php?sample_id=<?=(int)$record['id']?>">Create Price Quote</a><?php endif;?><a class="btn light" href="samples.php">Create New Sample</a><a class="btn light" href="sampletracking.php">Back to Sample Tracking</a><a class="btn light" href="sampletracking.php">View Requested Samples</a><button class="btn" onclick="window.print()">Print / Save as PDF</button></div><article class="report"><header class="head"><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><div class="title"><h1><?=!empty($_GET['preview'])?'SAMPLE REPORT PREVIEW':'CUSTOMER SAMPLE REPORT'?></h1><strong><?=h($record['sample_number'])?></strong><div class="status"><?=h($record['status'])?></div></div></header>
+</style></head><body><div class="tools"><?=workflow_back_link('btn light')?><?php if(!empty($_GET['preview'])):?><a class="btn light" href="samples.php?resume_preview=1">Continue Editing</a><?php else:?><a class="btn light" href="samples.php?edit=<?=(int)$record['id']?>">Edit Sample</a><?php endif;?><?php if(!empty($record['id'])):?><a class="btn" href="pricequote.php?sample_id=<?=(int)$record['id']?>">Create Price Quote</a><?php endif;?><a class="btn light" href="samples.php">Create New Sample</a><a class="btn light" href="sampletracking.php">Back to Sample Tracking</a><a class="btn light" href="sampletracking.php">View Requested Samples</a><button class="btn" onclick="window.print()">Print / Save as PDF</button></div><article class="report"><header class="head"><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><div class="title"><h1><?=!empty($_GET['preview'])?'SAMPLE REPORT PREVIEW':'CUSTOMER SAMPLE REPORT'?></h1><strong><?=h($record['sample_number'])?></strong><div class="status"><?=h($record['status'])?></div></div></header>
 <?php if(!empty($_GET['preview'])):?><div class="notice">Preview only. This sample has not been saved or emailed.</div><?php elseif($message):?><div class="notice"><?=h($message)?></div><?php endif;?>
 <div class="grid"><section class="box"><h2>Customer</h2><p><strong><?=h($record['customer_company'])?></strong></p><p><?=h($record['contact_name'])?></p><p><?=h($record['contact_email'])?><br><?=h($record['contact_phone'])?></p><p><?=nl2br(h($record['ship_to']))?></p></section><section class="box"><h2>Request Information</h2><p><strong>Request Date:</strong> <?=h($record['request_date'])?></p><p><strong>Needed By:</strong> <?=h($record['needed_by'] ?: 'Not specified')?></p><p><strong>Sales Representative:</strong><br><?=h($record['sales_rep'])?><br><?=h($record['sales_rep_email'])?></p></section>
 <section class="box wide"><h2>Product and Sample</h2><div class="product"><?=h($record['product_name'])?></div><p><strong>Product Number:</strong> <?=h($record['product_number'] ?: '-')?></p><p><strong>CAS Number:</strong> <?=h($record['cas_number'] ?: '-')?></p><p><strong>Sample Quantity:</strong> <?=h($record['sample_quantity'].' '.$record['sample_unit'])?></p><p><strong>Packaging:</strong> <?=h($record['packaging'] ?: '-')?></p><p><strong>Manufacturer / Supplier:</strong> <?=h($record['manufacturer'] ?: '-')?></p><?php if($record['lot_number']):?><p><strong>Lot Number:</strong> <?=h($record['lot_number'])?></p><?php endif;?></section>
@@ -169,7 +117,7 @@ if ((!empty($_GET['report']) && !empty($record['id'])) || (!empty($_GET['preview
 .brand{display:flex;align-items:center;gap:18px}.top-logo{display:block;width:190px;max-height:72px;object-fit:contain;background:#fff;border-radius:8px;padding:9px 12px}@media(max-width:900px){.brand{align-items:flex-start;flex-direction:column}.top-logo{width:175px}}
 </style></head><body>
 <div id="device" class="device"><div class="device-box"><h2>How are you entering this sample?</h2><p>Choose your device. The page will adjust for easier entry.</p><div class="device-options"><button onclick="device('mobile')">Mobile Phone<small>Stacked fields and large buttons</small></button><button onclick="device('desktop')">Desktop / Laptop / Notebook<small>Full-width database entry</small></button></div></div></div>
-<main class="page"><header class="top"><div class="brand"><img class="top-logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><div><h1>Lowe Sample Database</h1><p>Request, ship, follow up, evaluate, quote, and convert customer samples.</p></div></div><div class="actions"><a class="btn" href="salesworkflow.php">← Sales Workflow</a><?php if(!empty($record['id'])):?><a class="btn" href="pricequote.php?sample_id=<?=(int)$record['id']?>">Create Price Quote</a><?php else:?><a class="btn" href="pricequote.php">Price Quotes</a><?php endif;?><a class="btn" href="sampletracking.php">Sample Tracking</a><a class="btn" href="samples.php">New Sample</a><button class="btn" type="button" onclick="document.getElementById('device').classList.remove('hide')">Change Device</button></div></header>
+<main class="page"><header class="top"><div class="brand"><img class="top-logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><div><h1>Lowe Sample Database</h1><p>Request, ship, follow up, evaluate, quote, and convert customer samples.</p></div></div><div class="actions"><?=workflow_back_link('btn')?><?php if(!empty($record['id'])):?><a class="btn" href="pricequote.php?sample_id=<?=(int)$record['id']?>">Create Price Quote</a><?php else:?><a class="btn" href="pricequote.php">Price Quotes</a><?php endif;?><a class="btn" href="sampletracking.php">Sample Tracking</a><a class="btn" href="samples.php">New Sample</a><button class="btn" type="button" onclick="document.getElementById('device').classList.remove('hide')">Change Device</button></div></header>
 <?php if($message):?><div class="msg"><?=h($message)?></div><?php endif;?><?php if($error):?><div class="msg error"><?=h($error)?></div><?php endif;?>
 <section class="cards"><div class="metric"><small>Total Samples</small><strong><?=number_format((int)($summary['total']??0))?></strong></div><div class="metric"><small>Preparing</small><strong><?=number_format((int)($summary['pending']??0))?></strong></div><div class="metric"><small>In Customer Hands</small><strong><?=number_format((int)($summary['active']??0))?></strong></div><div class="metric"><small>Approved</small><strong><?=number_format((int)($summary['approved']??0))?></strong></div><div class="metric"><small>Quoted / Ordered</small><strong><?=number_format((int)($summary['converted']??0))?></strong></div></section>
 <form method="post" id="sampleForm"><input type="hidden" name="csrf" value="<?=h($csrf)?>"><input type="hidden" name="id" value="<?=h($record['id'])?>">

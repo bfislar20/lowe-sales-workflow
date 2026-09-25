@@ -188,6 +188,6 @@ function im_build(): array {
 }
 
 $cacheFile=__DIR__.'/inventory-dashboard-data-v2.json';$mtime=@filemtime(ld_master())?:0;$data=null;
-if(is_file($cacheFile)){$tmp=json_decode((string)@file_get_contents($cacheFile),true);if(is_array($tmp)&&(int)($tmp['cache_version']??0)===5&&(int)($tmp['source_mtime']??-1)===$mtime&&!empty($tmp['rows']))$data=$tmp;}
+if(is_file($cacheFile)){$tmp=json_decode((string)@file_get_contents($cacheFile),true);if(is_array($tmp)&&(int)($tmp['cache_version']??0)===5&&(int)($tmp['source_mtime']??-1)===$mtime&&($tmp['inventory_snapshot_date']??null)===date('Y-m-d')&&!empty($tmp['rows']))$data=$tmp;}
 if(!$data){try{$data=im_build();@file_put_contents($cacheFile,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),LOCK_EX);}catch(Throwable $e){http_response_code(500);die(ld_h('Could not build inventory model: '.$e->getMessage()));}}
 ?>

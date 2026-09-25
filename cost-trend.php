@@ -2,8 +2,8 @@
 require_once __DIR__.'/lowe-dashboard-common.php';
 function ct_h($v){return ld_h($v);}function ct_mk($d){return date('Y-m',strtotime((string)$d));}function ct_ml($m){return date('M y',strtotime($m.'-01'));}
 function ct_field(array $r,array $names,$default=''){foreach($names as $n){if(array_key_exists($n,$r)&&$r[$n]!==''&&$r[$n]!==null)return $r[$n];}return $default;}
-function ct_total_cost(array $r):float{return of_num(ct_field($r,['Total Item Cost','Total Cost'],0));}
-function ct_cost_lb(array $r):float{$v=of_num(ct_field($r,['Cost/LB'],0));if($v>0)return $v;$lbs=of_num(ct_field($r,['LBs Received'],0));$cost=ct_total_cost($r);return $lbs!=0?$cost/$lbs:0;}
+function ct_total_cost(array $r):float{return ld_purchase_total($r);}
+function ct_cost_lb(array $r):float{return ld_purchase_cost_lb($r);}
 try{$p=ld_rows('Purchases');}catch(Throwable $e){die(ld_h($e->getMessage()));}
 $latest=null;foreach($p as $r){$d=of_date($r['Receipt Date']??'');if($d&&($latest===null||$d>$latest))$latest=$d;}if(!$latest)die('No purchase history found.');$latestMonth=ct_mk($latest);$months=[];for($i=0;$i<13;$i++)$months[]=date('Y-m',strtotime($latestMonth.'-01 -'.$i.' months'));
 $groups=[];foreach($p as $r){$d=of_date($r['Receipt Date']??'');if(!$d)continue;$sup=trim((string)($r['Supplier Name']??''));$prod=trim((string)($r['Product Name']??''));if($sup===''||$prod==='')continue;$m=ct_mk($d);if(!in_array($m,$months,true))continue;$k=ld_key($sup).'|'.ld_key($prod);if(!isset($groups[$k]))$groups[$k]=['supplier'=>$sup,'product'=>$prod,'months'=>[],'latest_date'=>null,'latest_cost'=>0];$lbs=(float)($r['LBs Received']??0);$cost=ct_total_cost($r);if(!isset($groups[$k]['months'][$m]))$groups[$k]['months'][$m]=['lbs'=>0,'cost'=>0];$groups[$k]['months'][$m]['lbs']+=$lbs;$groups[$k]['months'][$m]['cost']+=$cost;if($groups[$k]['latest_date']===null||$d>$groups[$k]['latest_date']){$groups[$k]['latest_date']=$d;$groups[$k]['latest_cost']=ct_cost_lb($r);}}

@@ -1,4 +1,5 @@
 <?php
+session_start();
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
@@ -17,6 +18,15 @@ if (!is_array($data)) {
     echo json_encode(['ok' => false, 'error' => 'Invalid request data.']);
     exit;
 }
+
+$submittedCsrf = (string)($data['csrf_token'] ?? '');
+$sessionCsrf = (string)($_SESSION['pricequote_csrf_token'] ?? '');
+if ($submittedCsrf === '' || $sessionCsrf === '' || !hash_equals($sessionCsrf, $submittedCsrf)) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Your session expired. Refresh the Price Quote page and try again.']);
+    exit;
+}
+unset($data['csrf_token']);
 
 $customerName = trim((string)($data['customer_name'] ?? ''));
 $customerNo   = strtoupper(trim((string)($data['customer_no'] ?? '')));

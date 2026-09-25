@@ -1,6 +1,8 @@
 <?php
 session_start();require_once __DIR__ . '/opportunity-quote-sync.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
+require_once __DIR__ . '/includes/security.php';
 
 /*
  * Lowe Chemical Price Quote Builder
@@ -504,6 +506,11 @@ $defaultQuote = [
     ]
 ];
 
+if (empty($_SESSION['pricequote_csrf_token'])) {
+    $_SESSION['pricequote_csrf_token'] = bin2hex(random_bytes(32));
+}
+$priceQuoteCsrf = $_SESSION['pricequote_csrf_token'];
+
 $quote = $_SESSION['lowe_quote'] ?? $defaultQuote;
 $message = '';
 $messageType = 'success';
@@ -522,12 +529,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !empty($_GET['load'])) {
             $messageType = 'error';
         }
     } catch (Throwable $e) {
-        $message = 'Unable to load quote history: ' . $e->getMessage();
+        lowe_log_exception($e, 'Price Quote history load failed');
+        $message = lowe_safe_error('Unable to load the saved quote right now. Please try again.');
         $messageType = 'error';
     }
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $submittedCsrf = (string)($_POST['csrf_token'] ?? '');
+    if ($submittedCsrf === '' || !hash_equals($priceQuoteCsrf, $submittedCsrf)) {
+        http_response_code(403);
+        die('Your session expired. Refresh the Price Quote page and try again.');
+    }
+
     $action = $_POST['action'] ?? 'preview';
 
     if ($action === 'new_quote') {
@@ -611,7 +625,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $messageType = 'success';
         }
     } catch (Throwable $e) {
-        $message = 'The quote was created, but it could not be saved to Quote History: ' . $e->getMessage();
+        lowe_log_exception($e, 'Price Quote archive save failed');
+        $message = lowe_safe_error('The quote was created, but it could not be saved to Quote History. Please try again.');
         $messageType = 'error';
     }
 
@@ -921,7 +936,7 @@ body.mobile-mode .page{max-width:none;padding:8px}body.mobile-mode .topbar{paddi
             <p>Create Lowe Chemical customer quotations, preview them, print/save as PDF, or email them directly.</p>
         </div>
         <div class="actions">
-            <a href="salesworkflow.php" class="btn btn-outline">← Sales Workflow</a>
+            <?=workflow_back_link('btn btn-outline')?>
             <a href="quotes.php" class="btn" style="text-decoration:none;display:inline-flex;align-items:center">Quote History</a>
             <button type="button" class="btn" onclick="showDeviceGate()">Change Device</button>
             <button type="button" class="btn btn-primary" onclick="document.getElementById('quoteForm').requestSubmit(document.getElementById('previewBtn'))">Preview Quote</button>
@@ -935,7 +950,7 @@ body.mobile-mode .page{max-width:none;padding:8px}body.mobile-mode .topbar{paddi
         <div class="message <?= h($messageType) ?> no-print"><?= h($message) ?></div>
     <?php endif; ?>
 
-    <form method="post" id="quoteForm" class="editor no-print">
+    <form method="post" id="quoteForm" class="editor no-print"><input type="hidden" name="csrf_token" value="<?=h($priceQuoteCsrf)?>">
         <div class="grid">
             <div class="card">
                 <h2>Quote Information</h2>
@@ -1706,7 +1721,7 @@ async function saveNewCustomer(){
  };
  btn.disabled=true;btn.textContent='Adding...';err.classList.remove('show');
  try{
-   const r=await fetch('api/customer_add.php',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
+   payload.csrf_token=<?=json_encode($priceQuoteCsrf)?>; const r=await fetch('api/customer_add.php',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(payload)});
    const data=await r.json();
    if(!r.ok||data.ok===false) throw new Error(data.error||'Unable to add customer.');
    await selectCustomer(data.customer);

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 
 function post(string $key, string $default=''): string {
     return trim((string)($_POST[$key] ?? $default));
@@ -154,5 +155,6 @@ try {
 
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
-    fail('Database creation failed: '.$e->getMessage(), 500);
+    lowe_log_exception($e, 'RFQ clone failed');
+    fail(lowe_safe_error('The new RFQ could not be created because of a server error. Please try again.'), 500);
 }

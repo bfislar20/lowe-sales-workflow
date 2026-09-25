@@ -7,12 +7,7 @@
  * dependency-free XLSX reader can be reused.
  */
 
-$engine = __DIR__ . '/predictive-order-engine.php';
-if (!is_file($engine)) {
-    http_response_code(500);
-    die('predictive-order-engine.php was not found in this folder.');
-}
-require_once $engine;
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function cdn_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function cdn_num($v, $d=0): string { return number_format((float)$v, $d); }
@@ -106,28 +101,15 @@ function cdn_url(array $over=[]): string {
 }
 function cdn_gp($profit,$sales): float { return abs((float)$sales)>0.0001 ? (float)$profit/(float)$sales : 0.0; }
 function cdn_field(array $r,array $names,$default=''){ foreach($names as $n){ if(array_key_exists($n,$r) && $r[$n]!=='' && $r[$n]!==null) return $r[$n]; } return $default; }
-function cdn_purchase_total(array $r): float { return of_num(cdn_field($r,['Total Item Cost','Total Cost'],0)); }
-function cdn_purchase_cost_lb(array $r): float { $lbs=of_num(cdn_field($r,['LBs Received'],0)); $cost=cdn_purchase_total($r); return $lbs!=0?$cost/$lbs:0; }
+function cdn_purchase_total(array $r): float { return ld_purchase_total($r); }
+function cdn_purchase_cost_lb(array $r): float { return ld_purchase_cost_lb($r); }
 
 
-$workbookCandidates = [
-    __DIR__ . '/predictive-order-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/order-forecast-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/Lowe Master.xlsx',
-    __DIR__ . '/Lowe-Master.xlsx',
-];
-$xlsx = null;
-foreach ($workbookCandidates as $candidate) {
-    if (is_file($candidate)) { $xlsx = $candidate; break; }
-}
-if (!$xlsx) {
-    http_response_code(500);
-    die('The current Lowe Master workbook was not found. Upload it through predictive-orders-admin.php first.');
-}
+$xlsx = ld_master();
 
 try {
-    $purchaseRows = of_assoc(of_read_sheet($xlsx, 'Purchases'));
-    $invoiceRows  = of_assoc(of_read_sheet($xlsx, 'Invoices'));
+    $purchaseRows = ld_rows('Purchases');
+    $invoiceRows  = ld_rows('Invoices');
 } catch (Throwable $e) {
     http_response_code(500);
     die('The Lowe Master workbook could not be read: ' . cdn_h($e->getMessage()));

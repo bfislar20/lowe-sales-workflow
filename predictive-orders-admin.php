@@ -2,9 +2,20 @@
 session_start();
 require_once __DIR__ . '/predictive-order-engine.php';
 
-// IMPORTANT: replace this with the same private password you currently use.
-const OF_ADMIN_PASSWORD = 'US_open_2027';
 const OF_MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+// A private file on SiteGround supplies the password hash; it must stay out of GitHub.
+$adminConfigFile = __DIR__ . '/config/forecast-admin.php';
+$adminConfig = is_file($adminConfigFile) ? require $adminConfigFile : [];
+$adminPasswordHash = is_array($adminConfig) ? (string)($adminConfig['password_hash'] ?? '') : '';
+$adminConfigured = $adminPasswordHash !== '';
+if (!$adminConfigured) {
+    http_response_code(503);
+    exit('The forecast admin login is not configured. Contact the site administrator.');
+}
+if (($_SESSION['of_admin_hash'] ?? '') !== hash('sha256', $adminPasswordHash)) {
+    unset($_SESSION['of_admin'], $_SESSION['of_admin_hash']);
+}
 
 function up_esc($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -23,7 +34,7 @@ function of_sheet_data_row_count(string $xlsxPath, string $sheetName): ?int {
 }
 
 if (isset($_GET['logout'])) {
-    unset($_SESSION['of_admin']);
+    unset($_SESSION['of_admin'], $_SESSION['of_admin_hash']);
     header('Location: predictive-orders-admin.php');
     exit;
 }
@@ -35,8 +46,9 @@ $sheetCounts = [];
 
 if (!($_SESSION['of_admin'] ?? false)) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'])) {
-        if (hash_equals(OF_ADMIN_PASSWORD, (string)$_POST['password'])) {
+        if (password_verify((string)$_POST['password'], $adminPasswordHash)) {
             $_SESSION['of_admin'] = true;
+            $_SESSION['of_admin_hash'] = hash('sha256', $adminPasswordHash);
             session_regenerate_id(true);
             header('Location: predictive-orders-admin.php');
             exit;

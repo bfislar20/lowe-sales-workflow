@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/includes/workflow-nav.php';
 session_start();
 if (empty($_SESSION['rfq_csrf'])) { $_SESSION['rfq_csrf'] = bin2hex(random_bytes(24)); }
 $csrfToken = $_SESSION['rfq_csrf'];
@@ -115,7 +116,7 @@ input:required:not([type="hidden"]):focus,select:required:focus,textarea:require
       <img src="images/lowe-logo.png" alt="Lowe Chemical Company" onerror="this.style.display='none';document.getElementById('brandFallback').style.display='block'">
       <div id="brandFallback" class="brand-fallback" style="display:none">LOWE CHEMICAL COMPANY<small>Our Chemistry Enhances Your Chemistry.</small></div>
     </div>
-    <div style="font-size:13px;color:#d8e5f0;text-align:right">Internal Sourcing<br><b>Supplier Pricing Request</b></div>
+    <div style="font-size:13px;color:#d8e5f0;text-align:right">Internal Sourcing<br><b>Supplier Pricing Request</b><br><?=workflow_back_link('btn secondary','← Sales Workflow')?></div>
   </div>
 </header>
 

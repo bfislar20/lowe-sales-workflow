@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/opportunity-config/app.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 opp_require_device();
 if (!opp_device()) { header('Location: opportunities.php'); exit; }
 
@@ -396,7 +397,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid #cbd2df;border-ra
 <div class="top">
   <div><h1><?=opp_h($opp['company_name'])?></h1><div><?=opp_h($opp['opportunity_no'])?> • <?=opp_h($opp['stage'])?></div></div>
   <div class="top-actions">
-    <a class="btn white" href="salesworkflow.php">← Sales Workflow</a> <a class="btn white" href="opportunities.php">Pipeline</a> <a class="btn white" href="opportunity-dashboard.php">Management Dashboard</a> <a class="btn white" href="opportunity-tasks.php">Task Center</a> <a class="btn white" href="opportunity-report.php">Reports</a> <a class="btn white" href="opportunity-funnel.php">Funnel</a> <a class="btn white" href="opportunity-closed.php">Closed</a>
+    <a class="btn white" href="<?=htmlspecialchars(workflow_url(),ENT_QUOTES,'UTF-8')?>">← Sales Workflow</a> <a class="btn white" href="opportunities.php">Pipeline</a> <a class="btn white" href="opportunity-dashboard.php">Management Dashboard</a> <a class="btn white" href="opportunity-tasks.php">Task Center</a> <a class="btn white" href="opportunity-report.php">Reports</a> <a class="btn white" href="opportunity-funnel.php">Funnel</a> <a class="btn white" href="opportunity-closed.php">Closed</a>
     <?php if($editMode): ?>
       <a class="btn white" href="opportunity.php?id=<?=$id?>">Cancel Edit</a>
     <?php else: ?>
