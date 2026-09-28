@@ -39,7 +39,16 @@ function im_build(): array {
 
     of_require($inventory,['Product Number','Total LBs','Total Cost','Receipt Date'],'Inventory');
     of_require($invoices,['INV. Date','Doc Type','Cust Name','Product Number','LBS'],'Invoices');
-    of_require($purchases,['Supplier Name','Receipt Date','Product Number','LBs Received'],'Purchases');
+    // Purchases exports use either "Product Number" or "Prod No." for the SKU.
+    // Normalize before validating so both workbook versions populate supplier history.
+    of_require($purchases,['Supplier Name','Receipt Date','LBs Received'],'Purchases');
+    if (!array_key_exists('Product Number', $purchases[0]) && !array_key_exists('Prod No.', $purchases[0])) {
+        throw new RuntimeException("Worksheet 'Purchases' is missing required columns: Product Number or Prod No.");
+    }
+    foreach ($purchases as &$purchase) {
+        $purchase['Product Number'] = im_first($purchase, ['Product Number', 'Prod No.']);
+    }
+    unset($purchase);
     of_require($openSO,['Product Number','Total LBS'],'Open Sales Orders');
     of_require($openPO,['Product Number','LBS'],'Open Purchase Orders');
 
@@ -134,7 +143,8 @@ function im_build(): array {
         $sup=trim((string)($r['Supplier Name']??'')); $lbs=max(0.0,of_num($r['LBs Received']??0));
         if($sup!=='') $supplierLbs[$code][$sup]=($supplierLbs[$code][$sup]??0)+$lbs;
         $d=im_date($r['Receipt Date']??'');
-        $cost=$lbs>0 ? of_num($r['Total Item Cost']??0)/$lbs : 0.0;
+        $cost=$lbs>0 ? of_num(im_first($r,['Total Item Cost','Total Cost'],0))/$lbs : 0.0;
+        if($cost<=0) $cost=of_num($r['Cost/LB']??0);
         if($cost<=0){$unit=of_num($r['Unit Cost']??0);$lbpu=of_num($r['LBs Per Stocking Unit']??0);if($unit>0&&$lbpu>0)$cost=$unit/$lbpu;}
         if($d && (!isset($lastPurchase[$code]) || $d>$lastPurchase[$code]['date'])) $lastPurchase[$code]=['date'=>$d,'cost'=>$cost,'supplier'=>$sup];
     }
@@ -184,10 +194,10 @@ function im_build(): array {
         $activity=abs($p['on_hand_lbs'])+abs($p['open_sales_orders_lbs'])+abs($p['open_purchase_orders_lbs'])+abs($p['sales_365_lbs']);
         if($activity>0.00001)$rows[]=$p;
     }
-    return ['cache_version'=>5,'source_file'=>basename(ld_master()),'source_mtime'=>@filemtime(ld_master())?:0,'as_of'=>$asOf,'inventory_snapshot_date'=>$today,'rows'=>$rows];
+    return ['cache_version'=>6,'source_file'=>basename(ld_master()),'source_mtime'=>@filemtime(ld_master())?:0,'as_of'=>$asOf,'inventory_snapshot_date'=>$today,'rows'=>$rows];
 }
 
 $cacheFile=__DIR__.'/inventory-dashboard-data-v2.json';$mtime=@filemtime(ld_master())?:0;$data=null;
-if(is_file($cacheFile)){$tmp=json_decode((string)@file_get_contents($cacheFile),true);if(is_array($tmp)&&(int)($tmp['cache_version']??0)===5&&(int)($tmp['source_mtime']??-1)===$mtime&&($tmp['inventory_snapshot_date']??null)===date('Y-m-d')&&!empty($tmp['rows']))$data=$tmp;}
+if(is_file($cacheFile)){$tmp=json_decode((string)@file_get_contents($cacheFile),true);if(is_array($tmp)&&(int)($tmp['cache_version']??0)===6&&(int)($tmp['source_mtime']??-1)===$mtime&&($tmp['inventory_snapshot_date']??null)===date('Y-m-d')&&!empty($tmp['rows']))$data=$tmp;}
 if(!$data){try{$data=im_build();@file_put_contents($cacheFile,json_encode($data,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),LOCK_EX);}catch(Throwable $e){http_response_code(500);die(ld_h('Could not build inventory model: '.$e->getMessage()));}}
 ?>
