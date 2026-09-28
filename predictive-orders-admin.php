@@ -41,6 +41,7 @@ if (isset($_GET['logout'])) {
 
 $error = '';
 $success = '';
+$passwordSuccess = '';
 $details = [];
 $sheetCounts = [];
 
@@ -60,7 +61,61 @@ if (!($_SESSION['of_admin'] ?? false)) {
         $_SESSION['of_csrf'] = bin2hex(random_bytes(24));
     }
 
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['master_file'])) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['change_password'])) {
+        try {
+            if (!hash_equals($_SESSION['of_csrf'], (string)($_POST['csrf'] ?? ''))) {
+                throw new RuntimeException('Security token expired. Refresh the page and try again.');
+            }
+            $currentPassword = (string)($_POST['current_password'] ?? '');
+            $newPassword = (string)($_POST['new_password'] ?? '');
+            $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+            if (!password_verify($currentPassword, $adminPasswordHash)) {
+                throw new RuntimeException('Current password is incorrect.');
+            }
+            if (strlen($newPassword) < 12 || strlen($newPassword) > 256) {
+                throw new RuntimeException('New password must be between 12 and 256 characters.');
+            }
+            if (!hash_equals($newPassword, $confirmPassword)) {
+                throw new RuntimeException('New passwords do not match.');
+            }
+            if (password_verify($newPassword, $adminPasswordHash)) {
+                throw new RuntimeException('Choose a password different from the current one.');
+            }
+
+            $newHash = password_hash($newPassword, PASSWORD_DEFAULT);
+            if ($newHash === false) {
+                throw new RuntimeException('Could not hash the new password.');
+            }
+            $configDir = dirname($adminConfigFile);
+            $temporaryConfig = tempnam($configDir, 'forecast-admin-');
+            if ($temporaryConfig === false) {
+                throw new RuntimeException('Could not write the password file. Check the config folder permissions in SiteGround.');
+            }
+            try {
+                $configContent = "<?php\n// Private forecast admin password. Do not add this file to GitHub.\nreturn "
+                    . var_export(['password_hash' => $newHash], true) . ";\n";
+                if (file_put_contents($temporaryConfig, $configContent, LOCK_EX) === false
+                    || !chmod($temporaryConfig, 0600)
+                    || !rename($temporaryConfig, $adminConfigFile)) {
+                    throw new RuntimeException('Could not save the new password. Check the config folder permissions in SiteGround.');
+                }
+            } finally {
+                if (is_file($temporaryConfig)) {
+                    @unlink($temporaryConfig);
+                }
+            }
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($adminConfigFile, true);
+            }
+            $adminPasswordHash = $newHash;
+            $_SESSION['of_admin_hash'] = hash('sha256', $newHash);
+            $_SESSION['of_csrf'] = bin2hex(random_bytes(24));
+            session_regenerate_id(true);
+            $passwordSuccess = 'Password changed. Use your new password next time you log in.';
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        }
+    } elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['master_file'])) {
         try {
             if (!hash_equals($_SESSION['of_csrf'], (string)($_POST['csrf'] ?? ''))) {
                 throw new RuntimeException('Security token expired. Refresh the page and try again.');
@@ -154,7 +209,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica
 .btn{display:inline-block;border:0;border-radius:5px;background:var(--red);color:#fff;padding:11px 17px;font-weight:700;text-decoration:none;cursor:pointer}
 .btn.secondary{background:var(--navy)}
 .alert{padding:15px 16px;border-radius:7px;margin-bottom:16px;line-height:1.45}.alert.error{background:#fde3e3;color:#8a1c1c}.alert.success{background:var(--green-bg);color:var(--green)}
-.warning{background:#fff5dc;border-left:4px solid #d28a00;padding:12px 14px;font-size:13px;line-height:1.5;margin-top:18px}
 .details{display:grid;grid-template-columns:220px 1fr;border-top:1px solid #dfe8e3;margin-top:14px}.details div{padding:8px 0;border-bottom:1px solid #dfe8e3}.details .k{font-weight:700}
 .sheet-title{margin:18px 0 8px;font-size:14px;font-weight:800;color:var(--navy)}
 .sheet-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:8px}
@@ -181,9 +235,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica
 <div class="panel">
 <h2>Administrator Login</h2>
 <form method="post"><div class="field"><label>Password</label><input type="password" name="password" required autofocus></div><button class="btn" type="submit">Log In</button></form>
-<div class="warning"><strong>Important:</strong> before uploading this revision, replace <code>CHANGE-ME-NOW</code> in this file with the same private password you currently use.</div>
 </div>
 <?php else: ?>
+
+<?php if ($passwordSuccess): ?><div class="alert success"><?= up_esc($passwordSuccess) ?></div><?php endif; ?>
 
 <?php if ($success): ?>
 <div class="alert success">
@@ -211,6 +266,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica
 <?php endif; ?>
 </div>
 <?php endif; ?>
+
+<div class="panel">
+<h2>Change Admin Password</h2>
+<p>Choose a password only you know. This changes the forecast admin login on this site.</p>
+<form method="post" autocomplete="off">
+<input type="hidden" name="csrf" value="<?= up_esc($_SESSION['of_csrf']) ?>">
+<input type="hidden" name="change_password" value="1">
+<div class="field"><label for="current_password">Current password</label><input id="current_password" type="password" name="current_password" autocomplete="current-password" required></div>
+<div class="field"><label for="new_password">New password (at least 12 characters)</label><input id="new_password" type="password" name="new_password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+<div class="field"><label for="confirm_password">Confirm new password</label><input id="confirm_password" type="password" name="confirm_password" autocomplete="new-password" minlength="12" maxlength="256" required></div>
+<button class="btn secondary" type="submit">Change Password</button>
+</form>
+</div>
 
 <div class="panel">
 <h2>Upload Updated Lowe Master Workbook</h2>
