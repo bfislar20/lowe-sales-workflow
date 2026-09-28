@@ -19,7 +19,7 @@ function ss_cost_lb(array $r): float { return ld_purchase_cost_lb($r); }
 $workbook=ld_master();
 
 $cacheFile=__DIR__.'/supplier-scorecard-cache.json';
-$cacheVersion=2;
+$cacheVersion=3;
 $mtime=(int)(filemtime($workbook)?:0);
 $payload=null;
 if(is_file($cacheFile)){
@@ -30,7 +30,14 @@ if(is_file($cacheFile)){
 if(!$payload){
   @set_time_limit(300);
   $rows=ld_rows('Purchases');
-  of_require($rows,['PO Number','Release Number','Supplier Name','Supplier Number','Receipt Date','Product Name','Product Number','Purchasing UOM','Qty Ordered','Qty Received','LBs Per Stocking Unit','LBs Received','Total Item Cost'],'Purchases');
+  // The Purchases export has renamed its PO, product, quantity, UOM, and cost
+  // columns. Their aliases are handled below, so require only shared fields.
+  of_require($rows,['Supplier Name','Supplier Number','Receipt Date','Product Name','LBs Received'],'Purchases');
+  foreach ([['PO Number','PO#'],['Release Number','Rel. No.'],['Product Number','Prod No.'],['Qty Ordered','Qty Ord.'],['Qty Received','Qty Rec.'],['Purchasing UOM','UOM'],['LBs Per Stocking Unit','LBs/UOM'],['Total Item Cost','Total Cost']] as $aliases) {
+    if (!array_intersect($aliases, array_keys($rows[0]))) {
+      throw new RuntimeException("Worksheet 'Purchases' is missing required columns: ".implode(' or ', $aliases));
+    }
+  }
 
   $latest=null;
   foreach($rows as $r){ $d=of_date($r['Receipt Date']??''); if($d&&($latest===null||$d>$latest)) $latest=$d; }
