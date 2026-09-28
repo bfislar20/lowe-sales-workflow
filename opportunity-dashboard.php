@@ -1,5 +1,6 @@
 <?php
 require __DIR__ . '/opportunity-config/app.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 opp_require_device();
 $pdo=opp_db();
 $year=max(2020,min(2100,(int)($_GET['year']??date('Y'))));
