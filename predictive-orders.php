@@ -36,6 +36,21 @@ $page  = max(1,(int)($_GET['page'] ?? 1));
 $per   = 100;
 
 $reps=[]; foreach($rows as $r){ if(!empty($r['rep'])) $reps[$r['rep']]=true; } $reps=array_keys($reps); sort($reps,SORT_NATURAL|SORT_FLAG_CASE);
+$productChoices=[];
+foreach($rows as $r){
+    $code=(string)($r['product_code'] ?? '');
+    $name=(string)($r['product'] ?? '');
+    $key=$code!=='' ? 'code:'.$code : 'name:'.$name;
+    if($code!=='' || $name!=='') $productChoices[$key]=['name'=>$name,'code'=>$code];
+}
+uasort($productChoices,fn($a,$b)=>strnatcasecmp($a['name'],$b['name']) ?: strnatcasecmp($a['code'],$b['code']));
+$requestedProducts=$_GET['products'] ?? [];
+$selectedProducts=[];
+if(is_array($requestedProducts)){
+    foreach($requestedProducts as $key){
+        if(is_string($key) && isset($productChoices[$key])) $selectedProducts[$key]=true;
+    }
+}
 
 $watchStatuses = ['Due now','Overdue','Due in 8-30 days'];
 $viewMap = [
@@ -52,14 +67,16 @@ $viewMap = [
 ];
 if(!isset($viewMap[$view])) $view='watch';
 
-function passes($r,$q,$rep,$pat,$minp){
+function passes($r,$q,$rep,$pat,$minp,$selectedProducts){
     if($q!=='' && !contains_ci($r['customer'],$q) && !contains_ci($r['product'],$q) && !contains_ci($r['product_code'],$q) && !contains_ci($r['customer_code'],$q)) return false;
+    $productKey=($r['product_code'] ?? '')!=='' ? 'code:'.$r['product_code'] : 'name:'.$r['product'];
+    if($selectedProducts && !isset($selectedProducts[$productKey])) return false;
     if($rep!=='' && $r['rep']!==$rep) return false;
     if($pat!=='all' && $r['pattern']!==$pat) return false;
     if($minp>0 && ($r['p30']===null || $r['p30']*100 < $minp)) return false;
     return true;
 }
-$base = array_values(array_filter($rows, fn($r)=>passes($r,$q,$rep,$pat,$minp)));
+$base = array_values(array_filter($rows, fn($r)=>passes($r,$q,$rep,$pat,$minp,$selectedProducts)));
 
 // KPI cards use the whole file, not the filters
 $kpi=[]; foreach(['Due now','Due in 8-30 days','Due in 31-60 days','Overdue','Order in house','Gone quiet'] as $s){ $kpi[$s]=['n'=>0,'lbs'=>0.0]; }
@@ -132,9 +149,12 @@ a{color:var(--blue)}
 .card .n{font-size:26px;font-weight:700;color:var(--navy)}.card .l{font-size:12px;color:var(--muted);margin-top:2px}.card .s{font-size:12px;margin-top:4px;color:var(--text)}
 .card.k-now{border-left-color:var(--red)}.card.k-now .n{color:var(--red)}.card.k-30{border-left-color:#d97706}.card.k-60{border-left-color:var(--blue)}.card.k-over{border-left-color:#7f1d1d}.card.k-house{border-left-color:var(--green)}.card.k-quiet{border-left-color:var(--purple)}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
-.filters{display:grid;grid-template-columns:minmax(240px,2fr) 1.6fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+.filters{display:grid;grid-template-columns:minmax(180px,1.6fr) minmax(190px,1.6fr) minmax(160px,1.4fr) repeat(4,minmax(105px,1fr)) auto;gap:10px;align-items:end}
 .field label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .field input,.field select{width:100%;padding:9px 10px;border:1px solid #b9c5d1;border-radius:6px;background:#fff;font-size:13.5px}
+.product-field{position:relative}.product-picker summary{border:1px solid #b9c5d1;border-radius:6px;padding:9px 10px;background:#fff;cursor:pointer;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product-picker[open] summary{border-color:var(--blue)}.product-picker-menu{position:absolute;z-index:10;top:100%;left:0;width:max(100%,300px);max-width:min(440px,90vw);padding:10px;background:#fff;border:1px solid #b9c5d1;border-radius:6px;box-shadow:0 8px 20px #061d3f26}
+.product-options{max-height:250px;overflow-y:auto;margin-top:8px;border:1px solid var(--line);border-radius:5px}.field .product-option{display:flex;gap:8px;align-items:start;padding:7px 8px;margin:0;font-size:13px;font-weight:400;text-transform:none;color:var(--text);cursor:pointer}.field .product-option[hidden]{display:none}.product-option:hover{background:#f3f6fa}.field .product-option input{width:auto;margin:2px 0 0}.product-picker-help{font-size:11px;color:var(--muted);margin:8px 0 0}.product-picker-clear{margin-top:8px;border:0;background:none;color:var(--blue);cursor:pointer;padding:0;text-decoration:underline}
 .btn{padding:9px 15px;border:0;border-radius:6px;background:var(--red);color:#fff;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;font-size:13.5px}.btn.alt{background:#56667a}.btn.green{background:#15803d}
 .info{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap}.info .t{font-weight:700;color:var(--navy);font-size:15px}.info .s{font-size:12px;color:var(--muted)}
 .tw{overflow:auto;border:1px solid var(--line);border-radius:8px}
@@ -152,6 +172,7 @@ details.how{background:#fff;border:1px solid var(--line);border-radius:8px;paddi
 .cal{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:8px}.cal div{background:#f3f6fa;border-radius:6px;padding:8px;text-align:center;font-size:12px}.cal b{display:block;font-size:13px;color:var(--navy)}
 .empty{padding:34px;text-align:center;color:var(--muted)}
 .items{font-size:12.5px;line-height:1.5}
+@media(max-width:1250px){.filters{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.exec{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr}.meta{text-align:left}.cal{grid-template-columns:repeat(2,1fr)}}
 @media print{.filters,.tabs,.btn,.pager,.header a{display:none}.tw{overflow:visible}body{background:#fff}}
 </style></head><body>
@@ -182,6 +203,11 @@ details.how{background:#fff;border:1px solid var(--line);border-radius:8px;paddi
 <div class="panel"><form method="get" class="filters">
  <input type="hidden" name="tab" value="<?=esc($tab)?>">
  <div class="field"><label>Customer / product / code</label><input type="text" name="q" value="<?=esc($q)?>" placeholder="e.g. Buckman, citric, 005601"></div>
+ <div class="field product-field"><label>Products</label><details class="product-picker" id="productPicker"><summary id="productSummary"><?=count($selectedProducts) ? num(count($selectedProducts)).' products selected' : 'All products'?></summary><div class="product-picker-menu">
+  <input type="search" id="productSearch" aria-label="Search product names or codes" placeholder="Search any part of name or code" autocomplete="off">
+  <div class="product-options" id="productOptions"><?php foreach($productChoices as $key=>$choice): ?><label class="product-option"><input type="checkbox" name="products[]" value="<?=esc($key)?>" <?=isset($selectedProducts[$key])?'checked':''?>><span><?=esc($choice['name'])?><?php if($choice['code']!==''): ?> <span class="sm">(<?=esc($choice['code'])?>)</span><?php endif; ?></span></label><?php endforeach; ?></div>
+  <p class="product-picker-help" id="productSearchStatus">Check one or more products, then select Run.</p><button type="button" class="product-picker-clear" id="clearProducts">Clear selections</button>
+ </div></details></div>
  <?php if($tab==='orders'): ?><div class="field"><label>View</label><select name="view"><?php foreach($viewMap as $k=>$v):?><option value="<?=esc($k)?>" <?=$view===$k?'selected':''?>><?=esc($v[0])?></option><?php endforeach;?></select></div><?php else: ?><div></div><?php endif; ?>
  <div class="field"><label>Sales rep</label><select name="rep"><option value="">All reps</option><?php foreach($reps as $r):?><option value="<?=esc($r)?>" <?=$rep===$r?'selected':''?>><?=esc($r)?></option><?php endforeach;?></select></div>
  <div class="field"><label>Buying pattern</label><select name="pattern"><option value="all">All</option><?php foreach(['Regular','Somewhat regular','Irregular'] as $c):?><option <?=$pat===$c?'selected':''?>><?=esc($c)?></option><?php endforeach;?></select></div>
@@ -245,6 +271,31 @@ details.how{background:#fff;border:1px solid var(--line);border-radius:8px;paddi
 </div>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
+(function(){
+ const picker=document.getElementById('productPicker');
+ const search=document.getElementById('productSearch');
+ const options=Array.from(document.querySelectorAll('#productOptions .product-option'));
+ const summary=document.getElementById('productSummary');
+ const status=document.getElementById('productSearchStatus');
+ const clear=document.getElementById('clearProducts');
+ function update(){
+   const term=search.value.trim().toLocaleLowerCase();
+   let matches=0, selected=0;
+   options.forEach(option=>{
+     const match=option.textContent.toLocaleLowerCase().includes(term);
+     option.hidden=!match;
+     if(match) matches++;
+     if(option.querySelector('input').checked) selected++;
+   });
+   summary.textContent=selected ? selected+' product'+(selected===1?'':'s')+' selected' : 'All products';
+   status.textContent=matches ? 'Check one or more products, then select Run.' : 'No products match this search.';
+ }
+ search.addEventListener('input',update);
+ picker.addEventListener('change',update);
+ picker.addEventListener('toggle',()=>{if(picker.open) search.focus();});
+ clear.addEventListener('click',()=>{options.forEach(option=>{option.querySelector('input').checked=false;});search.value='';update();search.focus();});
+ update();
+})();
 (function(){
  const btn=document.getElementById('excelExport');
  if(!btn) return;
