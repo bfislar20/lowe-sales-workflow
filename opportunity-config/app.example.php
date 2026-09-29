@@ -46,13 +46,13 @@ function opp_check_csrf($token): bool {
 function opp_stage_probabilities(): array {
     return [
         'Lead' => 10,
-        'Qualified' => 20,
-        'Sample / Trial' => 30,
-        'Customer Testing' => 40,
-        'Quoting' => 50,
-        'Negotiation' => 70,
+        'Qualified' => 35,
+        'Sample / Trial' => 45,
+        'Customer Testing' => 55,
+        'Quoting' => 65,
+        'Negotiation' => 75,
         'Awaiting PO' => 90,
-        'On Hold' => 10,
+        'On Hold' => 25,
         'Won' => 100,
         'Lost' => 0,
     ];
