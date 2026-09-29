@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/security.php';
 
 function fail(string $message, int $code=400): never {
     http_response_code($code);
@@ -83,7 +84,7 @@ try{
     foreach($suppliers as $i=>$s){$lookup->execute([$s['name']]);$sid=$lookup->fetchColumn();$insert->execute([$rfqId,$sid?:null,$s['name'],$s['contact']?:null,$s['email']?:null,$i+1,$s['email']!==''?'Ready':'Not Ready']);}
     $pdo->prepare('INSERT INTO rfq_status_history(rfq_id,old_status,new_status,changed_by,note) VALUES(?,NULL,?,?,?)')->execute([$rfqId,$status,$requester['email'],$action==='send_now'?'RFQ created and queued for immediate supplier email.':'RFQ saved as a draft.']);
     $pdo->commit();
-}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();fail($e->getMessage(),500);}
+}catch(Throwable $e){if($pdo->inTransaction())$pdo->rollBack();lowe_log_exception($e,'RFQ processing');fail(lowe_safe_error('The RFQ could not be processed because of a server error.'),500);}
 
 $_SESSION['rfq_csrf']=bin2hex(random_bytes(24));
 

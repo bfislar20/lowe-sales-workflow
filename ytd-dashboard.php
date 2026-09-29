@@ -5,7 +5,7 @@
  */
 declare(strict_types=1);
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function yd_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function yd_num($v, int $d=0): string { return number_format((float)$v,$d); }
@@ -17,27 +17,11 @@ function yd_pct_change(float $cur,float $prev): ?float {
 }
 function yd_var_class(float $v): string { return $v>0.000001?'pos':($v<-0.000001?'neg':'neutral'); }
 
-function yd_find_workbook(): ?string {
-    $candidates = [
-        __DIR__ . '/predictive-order-files/Lowe-Master-Latest.xlsx',
-        __DIR__ . '/order-forecast-files/Lowe-Master-Latest.xlsx',
-        __DIR__ . '/Lowe Master.xlsx',
-        __DIR__ . '/Lowe Master(1).xlsx',
-        __DIR__ . '/Lowe-Master-Latest.xlsx',
-    ];
-    foreach($candidates as $p) if(is_file($p)) return $p;
-    return null;
-}
-
-$workbook = yd_find_workbook();
-if(!$workbook){
-    http_response_code(500);
-    die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.');
-}
+$workbook = ld_master();
 
 try {
     @set_time_limit(300);
-    $invoiceRows = of_assoc(of_read_sheet($workbook,'Invoices'));
+    $invoiceRows = ld_rows('Invoices');
     of_require($invoiceRows,['INV. Date','Doc Type','Cust Name','Cust#','Product Name','LBS','Sales $$','Profit $$','REP'],'Invoices');
 } catch(Throwable $e){
     http_response_code(500);

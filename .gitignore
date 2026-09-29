@@ -1,0 +1,9 @@
+# Lowe Sales Workflow - local/production secrets
+config/database.php
+config/db.php
+config/forecast-admin.php
+opportunity-config/app.php
+.env
+.env.*
+
+opportunity-config/database.php

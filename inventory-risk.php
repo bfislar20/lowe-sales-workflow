@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);require_once __DIR__.'/inventory-model.php';
+declare(strict_types=1);require_once __DIR__.'/inventory-model-v2.php';
 $q=trim((string)($_GET['q']??''));$view=(string)($_GET['view']??'all');$supplier=trim((string)($_GET['supplier']??''));$rows=[];$sup=[];
 foreach($data['rows'] as $r){if(($r['primary_supplier']??'')!=='')$sup[$r['primary_supplier']]=true;$risk=$r['projected_shortage_lbs']>0.5||$r['available_lbs']<0||$r['expired_lbs']>0;if(!$risk)continue;if($q!==''&&!ld_contains($r['product_name'],$q)&&!ld_contains($r['product_code'],$q)&&!ld_contains($r['top_customer'],$q))continue;if($supplier!==''&&$r['primary_supplier']!==$supplier)continue;if($view==='shortage'&&$r['projected_shortage_lbs']<=0.5)continue;if($view==='negative'&&$r['available_lbs']>=0)continue;if($view==='expiry'&&$r['expired_lbs']<=0&&$r['expiring_90_lbs']<=0)continue;$rows[]=$r;}usort($rows,fn($a,$b)=>$b['projected_shortage_lbs']<=>$a['projected_shortage_lbs']);ksort($sup,SORT_NATURAL|SORT_FLAG_CASE);
 $short=array_sum(array_column($rows,'projected_shortage_lbs'));$so=array_sum(array_column($rows,'open_sales_orders_lbs'));$po=array_sum(array_column($rows,'open_purchase_orders_lbs'));

@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/sample-schema.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 date_default_timezone_set('America/Chicago');
 
 function h($value): string { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); }
@@ -8,17 +10,7 @@ function clean($value, int $limit=500): string { $value=trim((string)$value); re
 function sample_number(): string { return 'LS-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)); }
 
 $pdo=db();
-$sourceColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'request_source'")->fetch();
-if(!$sourceColumn)$pdo->exec("ALTER TABLE sample_records ADD request_source VARCHAR(30) NOT NULL DEFAULT 'Internal' AFTER status");
-$casColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'cas_number'")->fetch();
-if(!$casColumn)$pdo->exec("ALTER TABLE sample_records ADD cas_number VARCHAR(80) NULL AFTER product_name");
-$buyingColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'currently_buying'")->fetch();
-if(!$buyingColumn)$pdo->exec("ALTER TABLE sample_records ADD currently_buying VARCHAR(10) NULL AFTER application");
-$supplierColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'current_supplier'")->fetch();
-if(!$supplierColumn)$pdo->exec("ALTER TABLE sample_records ADD current_supplier VARCHAR(180) NULL AFTER currently_buying");
-$shippingAccountColumn=$pdo->query("SHOW COLUMNS FROM sample_records LIKE 'shipping_account_number'")->fetch();
-if(!$shippingAccountColumn)$pdo->exec("ALTER TABLE sample_records ADD shipping_account_number VARCHAR(40) NULL AFTER carrier");
-
+sample_schema_assert($pdo);
 if(empty($_SESSION['customer_sample_csrf']))$_SESSION['customer_sample_csrf']=bin2hex(random_bytes(32));
 if(empty($_SESSION['customer_sample_started']))$_SESSION['customer_sample_started']=time();
 $csrf=$_SESSION['customer_sample_csrf'];
@@ -131,9 +123,9 @@ if(($_SERVER['REQUEST_METHOD']??'GET')==='POST'){
 </head>
 <body><main class="page">
 <?php if($submitted):?>
- <section class="success"><a class="workflow-link" href="salesworkflow.php">← Sales Workflow</a><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><h1>Your sample request has been received</h1><p>Thank you, <?=h($submitted['name'])?>. Your request number is:</p><div class="number"><?=h($submitted['number'])?></div><p><?php if(!empty($submitted['emailed'])):?>We sent a confirmation to <?=h($submitted['email'])?>. <?php endif;?>A member of the Lowe Chemical team will review your request and contact you if more information is needed.</p><p><a href="samplerequest.php">Request another sample</a></p></section>
+ <section class="success"><?=workflow_back_link('workflow-link')?><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><h1>Your sample request has been received</h1><p>Thank you, <?=h($submitted['name'])?>. Your request number is:</p><div class="number"><?=h($submitted['number'])?></div><p><?php if(!empty($submitted['emailed'])):?>We sent a confirmation to <?=h($submitted['email'])?>. <?php endif;?>A member of the Lowe Chemical team will review your request and contact you if more information is needed.</p><p><a href="samplerequest.php">Request another sample</a></p></section>
 <?php else:?>
- <a class="workflow-link" href="salesworkflow.php">← Sales Workflow</a><header class="hero"><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><h1>Request a Product Sample</h1><p>Tell us what you need and where the sample should be sent. Our team will review your request and contact you if we need more information.</p></header>
+ <?=workflow_back_link('workflow-link')?><header class="hero"><img class="logo" src="/images/lowe-logo.png" alt="Lowe Chemical Company"><h1>Request a Product Sample</h1><p>Tell us what you need and where the sample should be sent. Our team will review your request and contact you if we need more information.</p></header>
  <form class="form-card" method="post" novalidate><input type="hidden" name="csrf" value="<?=h($csrf)?>"><div class="trap" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
  <?php if($errors):?><div class="errors"><strong>Please correct the following:</strong><ul><?php foreach($errors as $error):?><li><?=h($error)?></li><?php endforeach;?></ul></div><?php endif;?>
  <fieldset class="section"><legend>Your Information</legend><div class="grid">

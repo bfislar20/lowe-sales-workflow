@@ -6,7 +6,7 @@
  */
 
 declare(strict_types=1);
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function yv_esc($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function yv_num($v, int $d=0): string { return number_format((float)$v,$d); }
@@ -15,16 +15,6 @@ function yv_contains($h,$n): bool { if($n==='')return true; return function_exis
 function yv_xml($v): string { return htmlspecialchars((string)$v, ENT_XML1|ENT_QUOTES,'UTF-8'); }
 function yv_col(int $n): string { $o=''; while($n>0){$n--; $o=chr(65+($n%26)).$o; $n=intdiv($n,26);} return $o; }
 function yv_qs(array $over=[]): string { $q=array_merge($_GET,$over); foreach($q as $k=>$v){if($v===''||$v===null)unset($q[$k]);} return '?'.http_build_query($q); }
-
-function yv_find_workbook(): ?string {
-    foreach([
-        __DIR__.'/predictive-order-files/Lowe-Master-Latest.xlsx',
-        __DIR__.'/order-forecast-files/Lowe-Master-Latest.xlsx',
-        __DIR__.'/Lowe Master.xlsx',
-        __DIR__.'/Lowe-Master-Latest.xlsx'
-    ] as $p){ if(is_file($p)) return $p; }
-    return null;
-}
 
 function yv_download_xlsx(array $rows,array $meta): void {
     if(!class_exists('ZipArchive')){ http_response_code(500); die('Excel download requires the PHP Zip extension (ZipArchive) on the server.'); }
@@ -75,12 +65,11 @@ function yv_download_xlsx(array $rows,array $meta): void {
     $fn='Lowe-'.$cur.'-vs-'.$prior.'-Variance.xlsx'; header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); header('Content-Disposition: attachment; filename="'.$fn.'"'); header('Content-Length: '.filesize($tmp)); header('Cache-Control: no-store, no-cache, must-revalidate'); readfile($tmp); @unlink($tmp); exit;
 }
 
-$workbook=yv_find_workbook();
-if(!$workbook){http_response_code(500);die('Lowe Master workbook not found. Upload the workbook from predictive-orders-admin.php first.');}
+$workbook=ld_master();
 
 try{
     @set_time_limit(300);
-    $raw=of_assoc(of_read_sheet($workbook,'Invoices'));
+    $raw=ld_rows('Invoices');
     of_require($raw,['INV. Date','Doc Type','Cust Name','Cust#','Product Name','Product Number','LBS','REP'],'Invoices');
 }catch(Throwable $e){http_response_code(500);die('Could not build the variance report: '.yv_esc($e->getMessage()));}
 

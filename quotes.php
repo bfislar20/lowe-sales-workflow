@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 date_default_timezone_set('America/Chicago');
 
 function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -123,7 +124,7 @@ $reps = $pdo->query("SELECT DISTINCT sales_rep FROM quote_records WHERE sales_re
 <div class="page">
   <div class="topbar">
     <div><h1>Lowe Chemical Quote History</h1><p>Search, reopen, revise, and track quotes created in the Lowe quote system.</p></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="salesworkflow.php">&larr; Sales Workflow</a><a class="btn" href="pricequote.php">+ New Quote</a></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><?=workflow_back_link('btn')?><a class="btn" href="pricequote.php">+ New Quote</a></div>
   </div>
 
   <?php if ($message): ?><div class="message <?= $messageType === 'error' ? 'error' : '' ?>"><?= h($message) ?></div><?php endif; ?>

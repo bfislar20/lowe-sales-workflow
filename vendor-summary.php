@@ -5,22 +5,9 @@
   Uses the latest Lowe Master workbook saved by predictive-orders-admin.php.
 */
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
-$masterCandidates = [
-    __DIR__ . '/predictive-order-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/order-forecast-files/Lowe-Master-Latest.xlsx',
-    __DIR__ . '/Lowe Master.xlsx',
-    __DIR__ . '/Lowe Master(1).xlsx'
-];
-$masterFile = null;
-foreach ($masterCandidates as $f) {
-    if (is_file($f)) { $masterFile = $f; break; }
-}
-if (!$masterFile) {
-    http_response_code(500);
-    die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.');
-}
+$masterFile = ld_master();
 
 function vs_esc($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function vs_num($v,$d=0){ return number_format((float)$v,$d); }
@@ -31,7 +18,7 @@ function vs_month_label($key){ return date('M Y', strtotime($key.'-01')); }
 function vs_add_months($key,$delta){ return date('Y-m', strtotime($key.'-01 '.($delta>=0?'+':'').$delta.' months')); }
 function vs_qs(array $over=[]){ $q=array_merge($_GET,$over); foreach($q as $k=>$v){ if($v===''||$v===null) unset($q[$k]); } return '?'.http_build_query($q); }
 function vs_field(array $r,array $names,$default=''){ foreach($names as $n){ if(array_key_exists($n,$r) && $r[$n]!=='' && $r[$n]!==null) return $r[$n]; } return $default; }
-function vs_total_cost(array $r): float { return of_num(vs_field($r,['Total Item Cost','Total Cost'],0)); }
+function vs_total_cost(array $r): float { return ld_purchase_total($r); }
 
 $cacheFile = __DIR__ . '/vendor-summary-cache.json';
 $cacheVersion = 2;
@@ -44,7 +31,7 @@ if (is_file($cacheFile)) {
 
 if (!$cache) {
     @set_time_limit(300);
-    $rows = of_assoc(of_read_sheet($masterFile, 'Purchases'));
+    $rows = ld_rows('Purchases');
     of_require($rows, ['Supplier Name','Supplier Number','Receipt Date','Product Name','LBs Received'], 'Purchases');
 
     $latest = null;

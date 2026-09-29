@@ -1,6 +1,7 @@
 <?php
 session_start();
 require __DIR__ . '/config/db.php';
+require_once __DIR__ . '/includes/workflow-nav.php';
 function h(string $s): string { return htmlspecialchars($s, ENT_QUOTES, 'UTF-8'); }
 $pdo = db();
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -41,7 +42,7 @@ body{margin:0;background:#f4f7fa;color:#17212b;font:14px/1.45 Arial,sans-serif}.
 </style></head><body>
 <div class="top"><div class="topin"><img src="images/lowe-logo.png" alt="Lowe Chemical Company"><strong>Internal Sourcing</strong></div></div>
 <main class="wrap">
-<div class="head"><div><h1 style="color:#0c2340;margin-bottom:5px"><?= h($rfq['rfq_number']) ?></h1><span class="status"><?= h($rfq['status']) ?></span></div><div class="actions"><a class="btn secondary" href="rfq-list.php">Back to RFQs</a><a class="btn primary" href="vendor-pricing-request.php">New Pricing Request</a></div></div>
+<div class="head"><div><h1 style="color:#0c2340;margin-bottom:5px"><?= h($rfq['rfq_number']) ?></h1><span class="status"><?= h($rfq['status']) ?></span></div><div class="actions"><?=workflow_back_link('btn secondary')?> <a class="btn secondary" href="rfq-list.php">Back to RFQs</a><a class="btn primary" href="vendor-pricing-request.php">New Pricing Request</a></div></div>
 <div class="card"><h2 style="color:#0c2340;margin-top:0">Request Details</h2><div class="grid">
 <?php
 $fields = [

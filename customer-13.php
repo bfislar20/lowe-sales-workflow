@@ -13,7 +13,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function c13_esc($v): string {
     return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
@@ -411,7 +411,7 @@ $detailInvoices=[]; $detailOpenOrders=[]; $detailInvoiceDocs=[]; $detailOpenDocs
 $detailInvoiceLbs=0.0; $detailSales=0.0; $detailProfit=0.0; $detailOpenLbs=0.0; $detailOpenSales=0.0;
 if($detailCustomer!=='' && $detailProduct!==''){
     try{
-        $rawInvoices=of_assoc(of_read_sheet($workbook,'Invoices'));
+        $rawInvoices=ld_rows('Invoices');
         $openSalesRows=of_assoc(of_read_sheet($workbook,'Open Sales Orders'));
         $periodStart=$displayMonths[count($displayMonths)-1]['key'].'-01';
         $periodEnd=(new DateTimeImmutable($displayMonths[0]['key'].'-01'))->modify('last day of this month')->format('Y-m-d');

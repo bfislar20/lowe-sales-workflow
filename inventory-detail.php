@@ -10,7 +10,7 @@
  */
 declare(strict_types=1);
 
-require_once __DIR__ . '/predictive-order-engine.php';
+require_once __DIR__ . '/lowe-dashboard-common.php';
 
 function id_h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 function id_num($v, int $d=0): string { return number_format((float)$v, $d); }
@@ -26,27 +26,13 @@ function id_qs(array $over=[]): string {
     return '?'.http_build_query($q);
 }
 
-$workbook = null;
-foreach ([
-    __DIR__.'/predictive-order-files/Lowe-Master-Latest.xlsx',
-    __DIR__.'/order-forecast-files/Lowe-Master-Latest.xlsx',
-    __DIR__.'/Lowe Master.xlsx',
-    __DIR__.'/Lowe Master(1).xlsx',
-    __DIR__.'/Lowe Master(2).xlsx',
-    __DIR__.'/Lowe-Master-Latest.xlsx'
-] as $f) {
-    if (is_file($f)) { $workbook=$f; break; }
-}
-if (!$workbook) {
-    http_response_code(500);
-    die('Lowe Master workbook not found. Upload the latest workbook through predictive-orders-admin.php first.');
-}
+$workbook = ld_master();
 
 try {
     @set_time_limit(300);
-    $inventoryRows = of_assoc(of_read_sheet($workbook,'Inventory'));
-    $salesRows     = of_assoc(of_read_sheet($workbook,'Open Sales Orders'));
-    $poRows        = of_assoc(of_read_sheet($workbook,'Open Purchase Orders'));
+    $inventoryRows = ld_rows('Inventory');
+    $salesRows     = ld_rows('Open Sales Orders');
+    $poRows        = ld_rows('Open Purchase Orders');
 
     of_require($inventoryRows,['Product Name','Product Number','Product UOM','Lot Number','Qty','Total LBs','Total Cost'],'Inventory');
     of_require($salesRows,['Product Name','Product Number','Qty'],'Open Sales Orders');

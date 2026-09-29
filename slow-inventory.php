@@ -1,5 +1,5 @@
 <?php
-declare(strict_types=1);require_once __DIR__.'/inventory-model.php';
+declare(strict_types=1);require_once __DIR__.'/inventory-model-v2.php';
 $q=trim((string)($_GET['q']??''));$min=max(0,(int)($_GET['months']??6));$ageView=(string)($_GET['age']??'all');
 $rows=[];$today=strtotime(date('Y-m-d'));
 try{$invLots=ld_rows('Inventory');}catch(Throwable $e){die(ld_h($e->getMessage()));}
