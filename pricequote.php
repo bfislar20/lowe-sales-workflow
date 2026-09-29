@@ -682,9 +682,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
             $headers = [];
             $headers[] = 'MIME-Version: 1.0';
+            // Send from the Lowe domain; a visitor or rep address may fail sender authentication.
+            $headers[] = 'From: Lowe Chemical <sales@lowechemical.com>';
             $ccRecipients = [];
             if (filter_var($quote['sales_email'], FILTER_VALIDATE_EMAIL)) {
-                $headers[] = 'From: ' . ($quote['sales_rep'] ? $quote['sales_rep'] . ' ' : '') . '<' . $quote['sales_email'] . '>';
                 $headers[] = 'Reply-To: ' . $quote['sales_email'];
                 // Always copy the sales representative on customer quote emails.
                 if (strcasecmp($quote['sales_email'], $quote['customer_email']) !== 0) {
@@ -727,7 +728,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $sent = @mail($quote['customer_email'], $subject, $mailBody, implode("\r\n", $headers));
             if ($sent) {
                 oqs_sync($quote, 'sent');
-                $message = 'Quote email sent to ' . $quote['customer_email'] . '.';
+                $message = 'The mail server accepted the quote for ' . $quote['customer_email'] . '. Delivery is not confirmed; check the inbox and spam folder.';
                 $messageType = 'success';
             } else {
                 $message = 'The quote was created, but the web server did not send the email. Your hosting account may require SMTP or mail configuration.';
