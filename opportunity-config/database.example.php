@@ -4,12 +4,12 @@ declare(strict_types=1);
 /**
  * Example database configuration for the Opportunities module.
  *
- * Copy this file to opportunity-config/database.php on production and
+ * Copy this file to opportunity-config/database.php on the target server and
  * replace the placeholders with the real connection details.
  * Never commit the production database.php file.
  */
 
-function oqs_db(): ?PDO {
+function opp_db(): ?PDO {
     try {
         return new PDO(
             'mysql:host=YOUR_DATABASE_HOST;dbname=YOUR_DATABASE_NAME;charset=utf8mb4',
